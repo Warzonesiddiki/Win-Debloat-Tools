@@ -118,11 +118,15 @@ Valid for **Apply Tweaks** and the `CLI` / `LowEnd` presets.
 - Security hardening that does **not** disable Defender ([Optimize-Security.ps1](./src/scripts/Optimize-Security.ps1))
 - Optional features + Recall ([Optimize-WindowsFeaturesList.ps1](./src/scripts/Optimize-WindowsFeaturesList.ps1))
 - **New:** Windows 11 shell ([Optimize-Windows11.ps1](./src/scripts/Optimize-Windows11.ps1))
-- **New:** AI surfaces ([Disable-WindowsAI.ps1](./src/scripts/Disable-WindowsAI.ps1))
+- **New:** Zero AI in Windows 11 ([Disable-WindowsAI.ps1](./src/scripts/Disable-WindowsAI.ps1))
+- **New:** 100% Privacy & Telemetry Hardening ([Optimize-Privacy.ps1](./src/scripts/Optimize-Privacy.ps1))
+- **New:** Network stack & latency tuning ([Optimize-Performance.ps1](./src/scripts/Optimize-Performance.ps1))
+- **New:** Start Menu promotional mocked apps cleaner ([Register-PersonalTweaksList.ps1](./src/scripts/Register-PersonalTweaksList.ps1))
 - **New:** Low-end smoothness ([Optimize-LowEndPC.ps1](./src/scripts/Optimize-LowEndPC.ps1))
 - **New:** Startup cleanup ([Optimize-StartupApps.ps1](./src/scripts/Optimize-StartupApps.ps1))
 - **New:** Visual effects ([Optimize-VisualEffects.ps1](./src/scripts/Optimize-VisualEffects.ps1))
 - **New:** Memory / CompactOS / pagefile ([Optimize-Memory.ps1](./src/scripts/Optimize-Memory.ps1))
+- **New:** Deep system cache & temporary files purge ([Remove-TemporaryFiles.ps1](./src/scripts/Remove-TemporaryFiles.ps1))
 
 </details>
 

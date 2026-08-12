@@ -1,10 +1,14 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-HardwareInfo.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Set-ItemPropertyVerified.psm1"
 
 function Start-DiskCleanUp() {
     [CmdletBinding()]
     param (
         [Parameter(Position = 0)]
-        [Switch] $Silent
+        [Switch] $Silent,
+        [Switch] $ResetBase,
+        [Switch] $Trim
     )
 
     $CleanOptions = @(
@@ -35,10 +39,14 @@ function Start-DiskCleanUp() {
     $PathToLMCleangmrSettings = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
     $TweakType = "Disk"
 
-    Write-Status -Types "+", $TweakType -Status "Cleaning the $env:SystemRoot\WinSxS folder..."
-    DISM /Online /Cleanup-Image /StartComponentCleanup /ResetBase | Out-Host
+    Write-Status -Types "+", $TweakType -Status "Cleaning the $env:SystemRoot\WinSxS component store..."
+    If ($ResetBase) {
+        DISM /Online /Cleanup-Image /StartComponentCleanup /ResetBase | Out-Host
+    } Else {
+        DISM /Online /Cleanup-Image /StartComponentCleanup | Out-Host
+    }
 
-    Write-Status -Types "+", $TweakType -Status "Cleaning up more system folders..."
+    Write-Status -Types "+", $TweakType -Status "Cleaning up system caches and temporary files..."
     If (!$Silent) {
         Start-Process cleanmgr.exe -ArgumentList "/d $env:SystemDrive", "/VERYLOWDISK" -Wait
     } Else {
@@ -48,6 +56,20 @@ function Start-DiskCleanUp() {
 
         Start-Process cleanmgr.exe -ArgumentList "/d $env:SystemDrive", "/SAGERUN:777" -Wait
     }
+
+    $DriveType = "SSD"
+    Try { $DriveType = Get-OSDriveType } Catch { }
+    $Letter = $env:SystemDrive[0]
+
+    If ($DriveType -match '(?i)SSD|NVMe') {
+        Write-Status -Types "+", $TweakType -Status "Running SSD TRIM on volume $Letter`:..."
+        Try { Optimize-Volume -DriveLetter $Letter -ReTrim -ErrorAction SilentlyContinue | Out-Host } Catch { }
+    } Else {
+        Write-Status -Types "+", $TweakType -Status "Analyzing HDD volume $Letter`:..."
+        Try { Optimize-Volume -DriveLetter $Letter -Analyze -ErrorAction SilentlyContinue | Out-Host } Catch { }
+    }
+
+    Write-Status -Types "+", $TweakType -Status "Disk cleanup and volume optimization completed."
 }
 
 Start-DiskCleanUp -Silent

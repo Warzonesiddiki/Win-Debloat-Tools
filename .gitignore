@@ -19,5 +19,9 @@
 # Ignore installers, WSL2 update in this case
 *.msi*
 
+# Python bytecode
+__pycache__/
+*.pyc
+
 # GIMP project files
 *.xcf

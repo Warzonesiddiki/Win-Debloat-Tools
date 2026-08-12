@@ -222,6 +222,13 @@ function Register-PersonalTweaksList() {
     Write-Status -Types $EnableStatus[0].Symbol, $TweakType -Status "$($EnableStatus[0].Status) Most Recent Used (MRU) items in Start, Jump Lists and File Explorer..."
     Set-ItemPropertyVerified -Path "$PathToCUExplorerAdvanced" -Name "Start_TrackDocs" -Type DWord -Value $Zero
 
+    $ReleaseInfo = Get-WindowsReleaseInfo
+    If ($ReleaseInfo.IsWindows11 -and -not $Revert) {
+        Unpin-StartMenuAppStubs
+    } ElseIf ($ReleaseInfo.IsWindows11 -and $Revert) {
+        Enable-DefaultStartMenuPins
+    }
+
     Write-Section "Privacy"
     Write-Caption "General"
     Write-Status -Types "*", $TweakType -Status "Enabling Let Windows track app launches to improve Start and search results (Run Dialog History)..."
@@ -284,8 +291,8 @@ function Register-PersonalTweaksList() {
     powercfg -Change Hibernate-Timeout-DC $TimeoutHibernateBattery
 }
 
-If (!$Revert) {
-    Register-PersonalTweaksList # Personal UI, Network, Energy and Accessibility Optimizations
-} Else {
+If ($Revert -or $Global:Revert) {
     Register-PersonalTweaksList -Revert
+} Else {
+    Register-PersonalTweaksList
 }

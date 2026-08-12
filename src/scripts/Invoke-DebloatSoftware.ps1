@@ -1,4 +1,4 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-TempScriptFolder.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-TempScriptFolder.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Request-FileDownload.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Remove-ItemVerified.psm1"
@@ -37,9 +37,9 @@ function Invoke-DebloatSoftware() {
     Remove-ItemVerified (Split-Path -Path $ShutUpOutput) -Force -Recurse # Leave no extra files
 }
 
-If (!$Revert) {
-    Invoke-DebloatSoftware # [AUTOMATED] ShutUp10 with recommended configs and AdwCleaner for Adware/Virus Scanning.
-} Else {
+If ($Revert -or $Global:Revert) {
     Invoke-DebloatSoftware -Revert
+} Else {
+    Invoke-DebloatSoftware
 }
 

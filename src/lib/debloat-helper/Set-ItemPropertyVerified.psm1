@@ -1,4 +1,4 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\Title-Templates.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\Title-Templates.psm1"
 
 function Set-ItemPropertyVerified() {
     [CmdletBinding(SupportsShouldProcess)]
@@ -15,7 +15,6 @@ function Set-ItemPropertyVerified() {
     )
 
     Begin {
-        $ScriptBlock = "Set-ItemProperty"
         $Script:TweakType = "Registry"
     }
 
@@ -25,37 +24,22 @@ function Set-ItemPropertyVerified() {
                 Write-Status -Types "?", $TweakType -Status "Creating new path in `"$PathParam`"..." -Warning
                 New-Item -Path "$PathParam" -Force | Out-Null
             }
-        }
 
-        If ($null -ne $Path) {
-            $ScriptBlock += " -Path "
-            ForEach ($PathParam in $Path) {
-                $ScriptBlock += "`"$PathParam`", "
-            }
-            $ScriptBlock = $ScriptBlock.TrimEnd(", ")
-        }
-
-        If ($null -ne $Name) {
-            $ScriptBlock += " -Name "
-            $ScriptBlock += "`"$Name`""
-        }
-
-        If (($null -ne $Type) -and ($Type -notlike '')) {
-            $ScriptBlock += " -Type "
-            $ScriptBlock += "$Type"
-        }
-
-        If ($null -ne $Value) {
-            $ScriptBlock += " -Value "
-
-            If ($Type -like 'Binary') {
-                $ScriptBlock += "([byte[]]($($Value -join ", ")))"
-            } Else {
-                $ScriptBlock += "$Value"
+            Try {
+                $Splat = @{
+                    Path        = $PathParam
+                    Name        = $Name
+                    Value       = $Value
+                    Force       = $true
+                    ErrorAction = 'Stop'
+                }
+                If ($Type) {
+                    $Splat['Type'] = $Type
+                }
+                Set-ItemProperty @Splat
+            } Catch {
+                Write-Status -Types "?", $TweakType -Status "Failed to set property `"$PathParam>$Name`": $_" -Warning
             }
         }
-
-        Write-Verbose "> $ScriptBlock"
-        Invoke-Expression "$ScriptBlock"
     }
 }

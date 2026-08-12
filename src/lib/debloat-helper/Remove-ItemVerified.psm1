@@ -1,6 +1,7 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\Title-Templates.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\Title-Templates.psm1"
 
 function Remove-ItemVerified() {
+    [CmdletBinding()]
     param (
         [Parameter(Position = 0, Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [String[]] $Path,
@@ -15,50 +16,29 @@ function Remove-ItemVerified() {
     )
 
     Begin {
-        $ScriptBlock = "Remove-Item"
         $Script:TweakType = "Exp/Reg"
     }
 
     Process {
-        If (Test-Path "$Path") {
-            Write-Status -Types "-", $TweakType -Status "Removing: '$Path'"
-
-            If ($null -ne $Path) {
-                $ScriptBlock += " -Path "
-                ForEach ($PathParam in $Path) {
-                    $ScriptBlock += "`"$PathParam`", "
+        ForEach ($PathParam in $Path) {
+            If (Test-Path -Path "$PathParam") {
+                Write-Status -Types "-", $TweakType -Status "Removing: '$PathParam'"
+                Try {
+                    $Splat = @{
+                        Path        = $PathParam
+                        Recurse     = $Recurse
+                        Force       = $Force
+                        ErrorAction = 'Stop'
+                    }
+                    If ($Include) { $Splat['Include'] = $Include }
+                    If ($Exclude) { $Splat['Exclude'] = $Exclude }
+                    Remove-Item @Splat
+                } Catch {
+                    Write-Status -Types "?", $TweakType -Status "Failed to remove '$PathParam': $_" -Warning
                 }
-                $ScriptBlock = $ScriptBlock.TrimEnd(", ")
+            } Else {
+                Write-Status -Types "?", $TweakType -Status "The path `"$PathParam`" does not exist." -Warning
             }
-
-            If ($null -ne $Include) {
-                $ScriptBlock += " -Include "
-                ForEach ($IncludeParam in $Include) {
-                    $ScriptBlock += "`"$IncludeParam`", "
-                }
-                $ScriptBlock = $ScriptBlock.TrimEnd(", ")
-            }
-
-            If ($null -ne $Exclude) {
-                $ScriptBlock += " -Exclude "
-                ForEach ($ExcludeParam in $Exclude) {
-                    $ScriptBlock += "`"$ExcludeParam`", "
-                }
-                $ScriptBlock = $ScriptBlock.TrimEnd(", ")
-            }
-
-            If ($null -ne $Recurse) {
-                $ScriptBlock += " -Recurse"
-            }
-
-            If ($null -ne $Force) {
-                $ScriptBlock += " -Force"
-            }
-
-            Write-Verbose "> $ScriptBlock"
-            Invoke-Expression "$ScriptBlock"
-        } Else {
-            Write-Status -Types "?", $TweakType -Status "The path `"$Path`" does not exist." -Warning
         }
     }
 }

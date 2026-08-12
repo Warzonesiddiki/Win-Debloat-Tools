@@ -41,6 +41,14 @@ $High = Resolve-HardwareProfile -RamGB 32 -CpuCores 8 -DriveType 'NVMe' -FreeDis
 Assert-Eq $High.Name 'HighEnd' '32GB NVMe is HighEnd'
 Assert-Eq $High.DisableTransparency $false 'High keeps transparency'
 
+$TargetMachine = Resolve-HardwareProfile -RamGB 20 -CpuCores 4 -DriveType 'SSD' -FreeDiskGB 422 -IsLaptop 1 -IsLowPowerCpu $true -DedicatedVramGB 2.0 -IsDualGpu $true
+Assert-Eq $TargetMachine.Name 'MidRange' 'i7-10510U 20GB MX330 Laptop is MidRange'
+Assert-Eq $TargetMachine.DisableSysMain $false 'Target machine keeps SysMain on SSD'
+Assert-Eq $TargetMachine.DisableSearch $false 'Target machine keeps Search on SSD'
+Assert-Eq $TargetMachine.DisableTransparency $true 'Target machine disables transparency for 2GB MX330 VRAM efficiency'
+Assert-Eq $TargetMachine.EnableHAGS $false 'Target machine skips HAGS on 2GB MX330'
+Assert-Eq $TargetMachine.UseCompactOS $false 'Target machine skips CompactOS with 422GB free'
+
 $Laptop = Resolve-HardwareProfile -RamGB 4 -CpuCores 2 -DriveType 'SSD' -FreeDiskGB 10 -IsLaptop 1
 Assert-Eq $Laptop.DisableHibernate $false 'Laptop keeps hibernate'
 
