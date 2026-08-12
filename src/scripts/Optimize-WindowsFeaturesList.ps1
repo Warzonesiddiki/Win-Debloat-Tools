@@ -1,4 +1,4 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Set-OptionalFeatureState.psm1"
 
 # Adapted from: https://github.com/ChrisTitusTech/win10script/pull/131/files
@@ -20,6 +20,7 @@ function Optimize-WindowsFeaturesList() {
         "Printing-PrintToPDFServices-Features" # Microsoft Print to PDF
         "Printing-XPSServices-Features"        # Microsoft XPS Document Writer
         "WorkFolders-Client"                   # Work Folders Client
+        "Recall"                               # Windows Recall (24H2 / Copilot+)
     )
 
     Write-Title "Optional Features Tweaks"

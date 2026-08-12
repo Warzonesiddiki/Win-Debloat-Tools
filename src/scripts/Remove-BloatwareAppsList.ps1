@@ -1,4 +1,4 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Remove-UWPApp.psm1"
 
 function Remove-BloatwareAppsList() {
@@ -50,6 +50,17 @@ function Remove-BloatwareAppsList() {
         "Microsoft.ZuneMusic"                    # Groove Music / (New) Windows Media Player
         "Microsoft.ZuneVideo"                    # Movies & TV
         "MicrosoftWindows.Client.CoPilot"        # Copilot Dependency
+        "Microsoft.Windows.Ai.Copilot.Provider"  # Copilot provider
+        "Microsoft.BingSearch"                   # Bing Search / Search Highlights
+        "Microsoft.StartExperiencesApp"          # Start recommendations feed
+        "Microsoft.Windows.DevHome"              # Dev Home
+        "MicrosoftWindows.CrossDevice"           # Phone Link / Cross Device
+        "Microsoft.WidgetsPlatformRuntime"       # Widgets runtime
+        "Microsoft.MicrosoftPCManager"           # PC Manager
+        "Microsoft.Edge.GameAssist"              # Edge Game Assist
+        "MicrosoftCorporationII.MicrosoftFamily" # Family Safety
+        "Microsoft.MicrosoftJournal"             # Journal
+        "MicrosoftTeams"                         # Classic Teams package name
 
         # Apps which other apps depend on
         "Microsoft.Advertising.Xaml"

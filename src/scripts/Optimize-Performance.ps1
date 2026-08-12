@@ -1,10 +1,12 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Open-File.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Open-File.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-HardwareInfo.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-HardwareProfile.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Unregister-DuplicatedPowerPlan.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Remove-ItemPropertyVerified.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Set-ItemPropertyVerified.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\utils\Individual-Tweaks.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\utils\Windows11-Tweaks.psm1"
 
 # Adapted from: https://youtu.be/hQSkPmZRCjc
 # Adapted from: https://github.com/ChrisTitusTech/win10script
@@ -35,6 +37,7 @@ function Optimize-Performance() {
     }
 
     $PCSystemType = Get-PCSystemType
+    $HardwareProfile = Get-HardwareProfile
     # Initialize all Path variables used to Registry Tweaks
     $PathToLMMultimediaSystemProfile = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
     $PathToLMMultimediaSystemProfileOnGameTasks = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
@@ -49,8 +52,12 @@ function Optimize-Performance() {
 
     Write-Section "System"
     Write-Caption "Display"
-    Write-Status -Types "+", $TweakType, "20H1" -Status "Enable Hardware Accelerated GPU Scheduling... (Windows 10+ - Needs Restart)"
-    Set-ItemPropertyVerified -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "HwSchMode" -Type DWord -Value 2
+    If ($HardwareProfile.EnableHAGS) {
+        Write-Status -Types "+", $TweakType, "20H1" -Status "Enable Hardware Accelerated GPU Scheduling... (Windows 10+ - Needs Restart)"
+        Set-ItemPropertyVerified -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "HwSchMode" -Type DWord -Value 2
+    } Else {
+        Write-Status -Types "@", $TweakType -Status "Skipping HAGS on $($HardwareProfile.Name) (can stall old/iGPU drivers)." -Warning
+    }
 
     Write-Status -Types $EnableStatus[0].Symbol, $TweakType -Status "$($EnableStatus[0].Status) Remote Assistance..."
     Set-ItemPropertyVerified -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance" -Name "fAllowToGetHelp" -Type DWord -Value $Zero
@@ -146,8 +153,8 @@ function Optimize-Performance() {
     Set-ItemPropertyVerified -Path "$PathToCUGameBar" -Name "AutoGameModeEnabled" -Type DWord -Value 1
 
     # Details: https://www.reddit.com/r/killerinstinct/comments/4fcdhy/an_excellent_guide_to_optimizing_your_windows_10/
-    Write-Status -Types "+", $TweakType -Status "Reserving 100% of CPU to Multimedia/Gaming tasks..."
-    Set-ItemPropertyVerified -Path "$PathToLMMultimediaSystemProfile" -Name "SystemResponsiveness" -Type DWord -Value 0 # Default: 20
+    Write-Status -Types "+", $TweakType -Status "Setting SystemResponsiveness to $($HardwareProfile.SystemResponsiveness) (0 starves the UI on low-end PCs)..."
+    Set-ItemPropertyVerified -Path "$PathToLMMultimediaSystemProfile" -Name "SystemResponsiveness" -Type DWord -Value $HardwareProfile.SystemResponsiveness # Default: 20
     Write-Status -Types "+", $TweakType -Status "Dedicate more CPU/GPU usage to Gaming tasks..."
     Set-ItemPropertyVerified -Path "$PathToLMMultimediaSystemProfileOnGameTasks" -Name "GPU Priority" -Type DWord -Value 8 # Default: 8
     Set-ItemPropertyVerified -Path "$PathToLMMultimediaSystemProfileOnGameTasks" -Name "Priority" -Type DWord -Value 6 # Default: 2
