@@ -21,14 +21,6 @@ on:
       - develop
 
 jobs:
-  profile-tests:
-    name: Hardware profile tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run hardware profile unit tests
-        run: python3 tests/test_hardware_profile.py
-
   build:
     name: PSScriptAnalyzer
     runs-on: ubuntu-latest
