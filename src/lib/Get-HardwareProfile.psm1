@@ -17,7 +17,10 @@ function Resolve-HardwareProfile {
         [String] $DriveType,
         [Double] $FreeDiskGB = 64,
         [Int]    $IsLaptop = 0,
-        [String] $OverrideName = ''
+        [String] $OverrideName = '',
+        [Bool]   $IsLowPowerCpu = $false,
+        [Double] $DedicatedVramGB = 0.0,
+        [Bool]   $IsDualGpu = $false
     )
 
     $NormalizedDrive = 'SSD'
@@ -34,7 +37,7 @@ function Resolve-HardwareProfile {
         $Name = 'ExtremeLowEnd'
     } ElseIf ($RamGB -le 8.5 -or $NormalizedDrive -eq 'HDD' -or $CpuCores -le 2) {
         $Name = 'LowEnd'
-    } ElseIf ($RamGB -le 16.5) {
+    } ElseIf ($RamGB -le 16.5 -or ($IsLaptop -and $IsLowPowerCpu) -or ($DedicatedVramGB -gt 0 -and $DedicatedVramGB -le 2.0)) {
         $Name = 'MidRange'
     }
 
@@ -43,6 +46,10 @@ function Resolve-HardwareProfile {
     }
 
     $IsConstrained = $Name -in @('ExtremeLowEnd', 'LowEnd')
+    # Entry GPUs (<=2GB VRAM or mobile U-series iGPUs) and non-high-end benefit from disabling transparency
+    $DisableTransparency = ($Name -ne 'HighEnd') -or ($DedicatedVramGB -gt 0 -and $DedicatedVramGB -le 2.0) -or ($IsLaptop -and $IsLowPowerCpu)
+    # HAGS is beneficial on desktop modern dGPUs, but should be skipped on entry 2GB mobile dGPUs or old Pascal MX chips
+    $EnableHAGS = ($Name -in @('MidRange', 'HighEnd')) -and -not ($DedicatedVramGB -gt 0 -and $DedicatedVramGB -le 2.0) -and -not ($IsLaptop -and $IsLowPowerCpu)
 
     return [PSCustomObject]@{
         Name                   = $Name
@@ -51,16 +58,19 @@ function Resolve-HardwareProfile {
         DriveType              = $NormalizedDrive
         FreeDiskGB             = [Math]::Round($FreeDiskGB, 1)
         IsLaptop               = [Bool]$IsLaptop
+        IsLowPowerCpu          = [Bool]$IsLowPowerCpu
+        DedicatedVramGB        = [Math]::Round($DedicatedVramGB, 1)
+        IsDualGpu              = [Bool]$IsDualGpu
         IsConstrained          = $IsConstrained
         DisableSysMain         = ($IsConstrained -or $NormalizedDrive -eq 'HDD')
         DisableSearch          = ($Name -eq 'ExtremeLowEnd' -or $NormalizedDrive -eq 'HDD' -or $RamGB -le 8.5)
         AggressiveVisuals      = $IsConstrained
-        DisableTransparency    = ($Name -ne 'HighEnd')
+        DisableTransparency    = $DisableTransparency
         DisableAnimations      = $IsConstrained
         UseCompactOS           = (($FreeDiskGB -lt 20) -or ($Name -eq 'ExtremeLowEnd' -and $FreeDiskGB -lt 40))
         DisableHibernate       = ((-not [Bool]$IsLaptop) -and ($Name -eq 'ExtremeLowEnd' -or $FreeDiskGB -lt 15))
         SystemResponsiveness   = 10
-        EnableHAGS             = ($Name -in @('MidRange', 'HighEnd'))
+        EnableHAGS             = $EnableHAGS
         PagefileStrategy       = $(If ($Name -eq 'ExtremeLowEnd') { 'FixedLowRam' } Else { 'SystemManaged' })
         KeepMemoryCompression  = $true
         ProtectDefender        = $true
@@ -180,11 +190,17 @@ function Get-HardwareProfile {
     Try { $PcType = Get-PCSystemType } Catch { $PcType = 1 }
     $IsLaptop = $(If ($PcType -eq 2) { 1 } Else { 0 })
 
-    $Profile = Resolve-HardwareProfile -RamGB $RamGB -CpuCores $Cores -DriveType $DriveType -FreeDiskGB $FreeDisk -IsLaptop $IsLaptop -OverrideName $Override
+    $IsLowPowerCpu = Test-IsLowPowerCpu
+    $GpuInfo = Get-GpuDetails
+
+    $Profile = Resolve-HardwareProfile -RamGB $RamGB -CpuCores $Cores -DriveType $DriveType -FreeDiskGB $FreeDisk -IsLaptop $IsLaptop -OverrideName $Override -IsLowPowerCpu $IsLowPowerCpu -DedicatedVramGB $GpuInfo.VramGB -IsDualGpu $GpuInfo.IsDualGpu
     $Win = Get-WindowsReleaseInfo
 
     $Profile | Add-Member -NotePropertyName 'Windows' -NotePropertyValue $Win -Force
-    $Profile | Add-Member -NotePropertyName 'Summary' -NotePropertyValue ("{0} | {1:N1}GB RAM | {2}C | {3} | {4:N1}GB free | {5} {6}" -f $Profile.Name, $Profile.RamGB, $Profile.CpuCores, $Profile.DriveType, $Profile.FreeDiskGB, $Win.Caption, $Win.DisplayVersion) -Force
+    $Profile | Add-Member -NotePropertyName 'GpuInfo' -NotePropertyValue $GpuInfo -Force
+
+    $GpuSummary = If ($GpuInfo.Summary) { " | " + $GpuInfo.Summary } Else { "" }
+    $Profile | Add-Member -NotePropertyName 'Summary' -NotePropertyValue ("{0} | {1:N1}GB RAM | {2}C | {3} | {4:N1}GB free | {5} {6}{7}" -f $Profile.Name, $Profile.RamGB, $Profile.CpuCores, $Profile.DriveType, $Profile.FreeDiskGB, $Win.Caption, $Win.DisplayVersion, $GpuSummary) -Force
 
     If (-not $Quiet) {
         Write-Status -Types "@", "Profile" -Status $Profile.Summary

@@ -1,4 +1,4 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\Manage-Chocolatey.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\Manage-Chocolatey.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\Manage-Winget.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\Open-File.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\Title-Templates.psm1"
@@ -68,7 +68,7 @@ function Install-Software() {
         }
 
         Try {
-            Invoke-Expression "$InstallBlock" | Out-Host
+            & $InstallBlock | Out-Host
             If (($LASTEXITCODE)) { throw "Couldn't install package." } # 0 = False, 1 = True
 
             If ($PackageProvider -eq 'MsStore') {
@@ -137,7 +137,7 @@ function Uninstall-Software() {
         }
 
         Try {
-            Invoke-Expression "$UninstallBlock" | Out-Host
+            & $UninstallBlock | Out-Host
             If (($LASTEXITCODE)) { throw "Couldn't uninstall package." } # 0 = False, 1 = True
 
             If ($PackageProvider -eq 'MsStore') {

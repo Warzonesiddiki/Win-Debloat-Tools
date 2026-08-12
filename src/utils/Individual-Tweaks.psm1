@@ -1,4 +1,4 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-HardwareInfo.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-HardwareInfo.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\New-Shortcut.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Remove-ItemVerified.psm1"
@@ -146,23 +146,97 @@ function Enable-DarkTheme() {
 }
 
 function Disable-EncryptedDNS() {
-    # I'm still not sure how to disable DNS over HTTPS, so this'll need to wait
-    # Adapted from: https://stackoverflow.com/questions/64465089/powershell-cmdlet-to-remove-a-statically-configured-dns-addresses-from-a-network
     Write-Status -Types "*" -Status "Resetting DNS server configs..."
-    Set-DnsClientServerAddress -InterfaceAlias "Ethernet*" -ResetServerAddresses
-    Set-DnsClientServerAddress -InterfaceAlias "Wi-Fi*" -ResetServerAddresses
+    Set-DnsClientServerAddress -InterfaceAlias "Ethernet*" -ResetServerAddresses -ErrorAction SilentlyContinue
+    Set-DnsClientServerAddress -InterfaceAlias "Wi-Fi*" -ResetServerAddresses -ErrorAction SilentlyContinue
 }
 
 function Enable-EncryptedDNS() {
-    # Adapted from: https://learn.microsoft.com/en-us/windows-server/networking/dns/doh-client-support
-    Write-Status -Types "+" -Status "Setting up the DNS over HTTPS for Cloudflare and Google (ipv4 and ipv6)..."
-    Set-DnsClientDohServerAddress -ServerAddress ("1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001") -AllowFallbackToUdp $false -AutoUpgrade $false -DohTemplate "https://cloudflare-dns.com/dns-query"
-    Set-DnsClientDohServerAddress -ServerAddress ("8.8.8.8", "8.8.4.4", "2001:4860:4860::8888", "2001:4860:4860::8844") -AllowFallbackToUdp $false -AutoUpgrade $false -DohTemplate "https://dns.google/dns-query"
+    [CmdletBinding()]
+    param (
+        [Parameter(Position = 0)]
+        [ValidateSet('Cloudflare', 'Google', 'Quad9', 'AdGuard')]
+        [String] $Provider = 'AdGuard'
+    )
 
-    Write-Status -Types "+" -Status "Setting up the DNS from Cloudflare and Google (ipv4 and ipv6)..."
-    #Get-DnsClientServerAddress # To look up the current config.           # Cloudflare, Google,         Cloudflare,              Google
-    Set-DNSClientServerAddress -InterfaceAlias "Ethernet*" -ServerAddresses ("1.1.1.1", "8.8.8.8", "2606:4700:4700::1111", "2001:4860:4860::8888")
-    Set-DNSClientServerAddress -InterfaceAlias    "Wi-Fi*" -ServerAddresses ("1.1.1.1", "8.8.8.8", "2606:4700:4700::1111", "2001:4860:4860::8888")
+    # Configures DoH (DNS-over-HTTPS) for privacy and ad/tracker blocking
+    Write-Status -Types "+" -Status "Configuring DNS-over-HTTPS (DoH) with $Provider provider..."
+
+    # Register known DoH templates
+    Try {
+        Set-DnsClientDohServerAddress -ServerAddress ("1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001") -AllowFallbackToUdp $true -AutoUpgrade $true -DohTemplate "https://cloudflare-dns.com/dns-query" -ErrorAction SilentlyContinue
+        Set-DnsClientDohServerAddress -ServerAddress ("8.8.8.8", "8.8.4.4", "2001:4860:4860::8888", "2001:4860:4860::8844") -AllowFallbackToUdp $true -AutoUpgrade $true -DohTemplate "https://dns.google/dns-query" -ErrorAction SilentlyContinue
+        Set-DnsClientDohServerAddress -ServerAddress ("9.9.9.9", "149.112.112.112", "2620:fe::fe", "2620:fe::9") -AllowFallbackToUdp $true -AutoUpgrade $true -DohTemplate "https://dns.quad9.net/dns-query" -ErrorAction SilentlyContinue
+        Set-DnsClientDohServerAddress -ServerAddress ("94.140.14.14", "94.140.15.15", "2a10:50c0::ad1:ff", "2a10:50c0::ad2:ff") -AllowFallbackToUdp $true -AutoUpgrade $true -DohTemplate "https://dns.adguard-dns.com/dns-query" -ErrorAction SilentlyContinue
+    } Catch { }
+
+    $Ipv4 = @("94.140.14.14", "94.140.15.15", "2a10:50c0::ad1:ff", "2a10:50c0::ad2:ff")
+    Switch ($Provider) {
+        'Cloudflare' { $Ipv4 = @("1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001") }
+        'Google'     { $Ipv4 = @("8.8.8.8", "8.8.4.4", "2001:4860:4860::8888", "2001:4860:4860::8844") }
+        'Quad9'      { $Ipv4 = @("9.9.9.9", "149.112.112.112", "2620:fe::fe", "2620:fe::9") }
+        'AdGuard'    { $Ipv4 = @("94.140.14.14", "94.140.15.15", "2a10:50c0::ad1:ff", "2a10:50c0::ad2:ff") }
+    }
+
+    Set-DnsClientServerAddress -InterfaceAlias "Ethernet*" -ServerAddresses $Ipv4 -ErrorAction SilentlyContinue
+    Set-DnsClientServerAddress -InterfaceAlias "Wi-Fi*" -ServerAddresses $Ipv4 -ErrorAction SilentlyContinue
+}
+
+function Unpin-StartMenuAppStubs() {
+    Write-Status -Types "-", "Personal" -Status "Unpinning promotional & mocked web apps from Windows 11 Start Menu..."
+    $StartBinPath = "$env:LOCALAPPDATA\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState\start.bin"
+    $Start2BinPath = "$env:LOCALAPPDATA\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState\start2.bin"
+
+    $BackupDir = Join-Path -Path $env:LOCALAPPDATA -ChildPath "Win-Debloat-Tools"
+    If (-not (Test-Path $BackupDir)) { New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null }
+
+    If (Test-Path $Start2BinPath) {
+        Copy-Item -Path $Start2BinPath -Destination (Join-Path $BackupDir "start2.bin.bak") -Force -ErrorAction SilentlyContinue
+    }
+    If (Test-Path $StartBinPath) {
+        Copy-Item -Path $StartBinPath -Destination (Join-Path $BackupDir "start.bin.bak") -Force -ErrorAction SilentlyContinue
+    }
+
+    $CloudStorePinned = "HKCU:\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\Cache\DefaultAccount"
+    If (Test-Path $CloudStorePinned) {
+        Get-ChildItem -Path $CloudStorePinned -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -like "*start.pinned*" } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    If (Test-Path $StartBinPath) { Remove-Item -Path $StartBinPath -Force -ErrorAction SilentlyContinue }
+    If (Test-Path $Start2BinPath) { Remove-Item -Path $Start2BinPath -Force -ErrorAction SilentlyContinue }
+
+    Try {
+        Stop-Process -Name "StartMenuExperienceHost" -Force -ErrorAction SilentlyContinue
+    } Catch { }
+}
+
+function Enable-DefaultStartMenuPins() {
+    Write-Status -Types "*", "Personal" -Status "Restoring Start Menu pinned apps backup..."
+    $BackupDir = Join-Path -Path $env:LOCALAPPDATA -ChildPath "Win-Debloat-Tools"
+    $Start2BinPath = "$env:LOCALAPPDATA\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState\start2.bin"
+
+    If (Test-Path (Join-Path $BackupDir "start2.bin.bak")) {
+        Copy-Item -Path (Join-Path $BackupDir "start2.bin.bak") -Destination $Start2BinPath -Force -ErrorAction SilentlyContinue
+        Try { Stop-Process -Name "StartMenuExperienceHost" -Force -ErrorAction SilentlyContinue } Catch { }
+    }
+}
+
+function Disable-NetworkPowerSaving() {
+    Write-Status -Types "+", "Network" -Status "Disabling Energy Efficient Ethernet (Green Ethernet) latency drops..."
+    Try {
+        Get-NetAdapterAdvancedProperty -ErrorAction SilentlyContinue | Where-Object {
+            $_.DisplayName -match "Energy Efficient|Green Ethernet|Power Saving|Gigabit Lite|Energy-Efficient"
+        } | Set-NetAdapterAdvancedProperty -DisplayValue "Disabled" -ErrorAction SilentlyContinue
+    } Catch { }
+}
+
+function Enable-NetworkPowerSaving() {
+    Write-Status -Types "*", "Network" -Status "Restoring network adapter default power settings..."
+    Try {
+        Get-NetAdapterAdvancedProperty -ErrorAction SilentlyContinue | Where-Object {
+            $_.DisplayName -match "Energy Efficient|Green Ethernet|Power Saving|Gigabit Lite|Energy-Efficient"
+        } | Set-NetAdapterAdvancedProperty -DisplayValue "Enabled" -ErrorAction SilentlyContinue
+    } Catch { }
 }
 
 function Disable-FamilySafety() {

@@ -1,5 +1,17 @@
 # ROADMAP
 
+## 2026v2 — Zero-AI, 100% Privacy & Advanced Performance
+
+- [x] Complete Zero-AI lockdown: Copilot, Recall, Click to Do, App AI (Edge, Paint, Notepad, Photos), Studio Effects, Phi Silica, Semantic Search, `WSAIFabricSvc`.
+- [x] 100% Privacy Hardening: Telemetry level 0, Device Census off, WER off, Bing & Cloud search off, AutoLoggers off, CEIP disabled, inking/typing surveillance blocked.
+- [x] Network stack tuning: TCP AutoTuning, CUBIC/CTCP congestion provider, Receive Side Scaling (RSS), TCP Chimney offload disabled, Energy-Efficient Ethernet latency drop disabled.
+- [x] Storage & Disk optimization: Deep cache purge, NTFS last-access timestamp chatter disabled, SSD TRIM integration (`Optimize-Volume`), native CIM/registry pagefile sizing.
+- [x] Unpin all Start Menu promotional & mocked web app stubs on Windows 11.
+- [x] Multi-provider DNS-over-HTTPS (DoH) with AdGuard, Cloudflare, Google, and Quad9 for system-wide ad/telemetry blocking.
+- [x] Security & Reliability refactoring: eliminated `Invoke-Expression` in registry helpers (parameter splatting), fixed all missing module imports in CLI sub-processes.
+- [x] Software catalog modernization: Ente Auth (replacing dead Twilio Authy), VMware Workstation Pro, Java 8/17/21 LTS.
+- [x] Automated workspace integrity & regression test suite (`tests/test_workspace_integrity.py`).
+
 ## 2026v1 — Windows 11 Low-End Edition
 
 - [x] Hardware-aware profiles (ExtremeLowEnd / LowEnd / MidRange / HighEnd).
@@ -12,11 +24,6 @@
 - [x] Safety contract: Defender, Update, audio, Wi-Fi, printing never touched.
 - [x] Profile unit tests + CI job.
 - [x] Undo Tweaks covers the new scripts and startup backup.
-
-## To Do (Cancelled)
-
-- [ ] Unpin All "mocked" apps (Apps on the Start Menu which are not installed, but are there).
-- [ ] Install Winget via Chocolatey as another option.
 
 ## 2023v2
 

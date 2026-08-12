@@ -1,4 +1,4 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\Title-Templates.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\Title-Templates.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\ui\Show-MessageDialog.psm1"
 
 function Open-PowerShellFilesCollection {
@@ -23,7 +23,11 @@ function Open-PowerShellFilesCollection {
         If ($OpenFromGUI) {
             Import-Module .\"$FileName" -Force
         } Else {
-            PowerShell -NoProfile -ExecutionPolicy Bypass -File .\"$FileName"
+            If ($Global:Revert) {
+                PowerShell -NoProfile -ExecutionPolicy Bypass -File .\"$FileName" -Revert
+            } Else {
+                PowerShell -NoProfile -ExecutionPolicy Bypass -File .\"$FileName"
+            }
         }
     }
 

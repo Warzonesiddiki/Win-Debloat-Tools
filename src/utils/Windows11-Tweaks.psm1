@@ -8,8 +8,9 @@ Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Remove-U
 # Windows 11 22H2-25H2 individual toggles. Every disable has a matching enable.
 
 function Disable-WindowsCopilot {
-    Write-Status -Types "-", "Win11" -Status "Disabling Microsoft Copilot (taskbar, policy, app)..."
+    Write-Status -Types "-", "Win11" -Status "Disabling Microsoft Copilot (taskbar, policy, app, sidebar)..."
     Set-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowCopilotButton" -Type DWord -Value 0
+    Set-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarCopilotEnabled" -Type DWord -Value 0
     Set-ItemPropertyVerified -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -Type DWord -Value 1
     Set-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -Type DWord -Value 1
     Set-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\Shell\Copilot\BingChat" -Name "IsUserEligible" -Type DWord -Value 0
@@ -19,6 +20,7 @@ function Disable-WindowsCopilot {
             "Microsoft.Copilot"
             "Microsoft.Windows.Ai.Copilot.Provider"
             "MicrosoftWindows.Client.CoPilot"
+            "Microsoft.Windows.Copilot"
         )
     } Catch {
         Write-Status -Types "?", "Win11" -Status "Copilot AppX removal skipped: $_" -Warning
@@ -28,6 +30,7 @@ function Disable-WindowsCopilot {
 function Enable-WindowsCopilot {
     Write-Status -Types "*", "Win11" -Status "Restoring Microsoft Copilot policies..."
     Remove-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowCopilotButton"
+    Remove-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarCopilotEnabled"
     Remove-ItemPropertyVerified -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot"
     Remove-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot"
     Remove-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\Shell\Copilot\BingChat" -Name "IsUserEligible"
@@ -61,6 +64,7 @@ function Disable-ClickToDo {
     Write-Status -Types "-", "Win11" -Status "Disabling Click to Do / AI text & image analysis..."
     Set-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "DisableClickToDo" -Type DWord -Value 1
     Set-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\Shell\ClickToDo" -Name "DisableClickToDo" -Type DWord -Value 1
+    Set-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\Shell\ClickToDo" -Name "IsClickToDoEnabled" -Type DWord -Value 0
     Set-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarCopilotEnabled" -Type DWord -Value 0
 }
 
@@ -68,6 +72,7 @@ function Enable-ClickToDo {
     Write-Status -Types "*", "Win11" -Status "Restoring Click to Do..."
     Remove-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "DisableClickToDo"
     Remove-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\Shell\ClickToDo" -Name "DisableClickToDo"
+    Remove-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\Shell\ClickToDo" -Name "IsClickToDoEnabled"
     Remove-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarCopilotEnabled"
 }
 
@@ -148,7 +153,7 @@ function Enable-FastStartup {
 }
 
 function Disable-EdgeAI {
-    Write-Status -Types "-", "Win11" -Status "Disabling Microsoft Edge Copilot / Compose AI..."
+    Write-Status -Types "-", "Win11" -Status "Disabling Microsoft Edge Copilot / Compose AI / Shopping Assistant..."
     $Edge = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
     Set-ItemPropertyVerified -Path $Edge -Name "HubsSidebarEnabled" -Type DWord -Value 0
     Set-ItemPropertyVerified -Path $Edge -Name "CopilotPageContext" -Type DWord -Value 0
@@ -157,12 +162,14 @@ function Disable-EdgeAI {
     Set-ItemPropertyVerified -Path $Edge -Name "NewTabPageHideDefaultTopSites" -Type DWord -Value 1
     Set-ItemPropertyVerified -Path $Edge -Name "ShowRecommendationsEnabled" -Type DWord -Value 0
     Set-ItemPropertyVerified -Path $Edge -Name "SpotlightExperiencesAndRecommendationsEnabled" -Type DWord -Value 0
+    Set-ItemPropertyVerified -Path $Edge -Name "EdgeEntSearchSupportEnabled" -Type DWord -Value 0
+    Set-ItemPropertyVerified -Path $Edge -Name "EdgeShoppingAssistantEnabled" -Type DWord -Value 0
 }
 
 function Enable-EdgeAI {
     Write-Status -Types "*", "Win11" -Status "Restoring Microsoft Edge AI policies..."
     $Edge = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
-    @("HubsSidebarEnabled", "CopilotPageContext", "CopilotCDPPageContext", "ComposeInlineEnabled", "NewTabPageHideDefaultTopSites", "ShowRecommendationsEnabled", "SpotlightExperiencesAndRecommendationsEnabled") | ForEach-Object {
+    @("HubsSidebarEnabled", "CopilotPageContext", "CopilotCDPPageContext", "ComposeInlineEnabled", "NewTabPageHideDefaultTopSites", "ShowRecommendationsEnabled", "SpotlightExperiencesAndRecommendationsEnabled", "EdgeEntSearchSupportEnabled", "EdgeShoppingAssistantEnabled") | ForEach-Object {
         Remove-ItemPropertyVerified -Path $Edge -Name $_
     }
 }
@@ -173,12 +180,13 @@ function Disable-PaintAI {
     Set-ItemPropertyVerified -Path $Paint -Name "DisableCocreator" -Type DWord -Value 1
     Set-ItemPropertyVerified -Path $Paint -Name "DisableGenerativeFill" -Type DWord -Value 1
     Set-ItemPropertyVerified -Path $Paint -Name "DisableImageCreator" -Type DWord -Value 1
+    Set-ItemPropertyVerified -Path $Paint -Name "DisableGenerativeErase" -Type DWord -Value 1
 }
 
 function Enable-PaintAI {
     Write-Status -Types "*", "Win11" -Status "Restoring Paint AI features..."
     $Paint = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint"
-    @("DisableCocreator", "DisableGenerativeFill", "DisableImageCreator") | ForEach-Object {
+    @("DisableCocreator", "DisableGenerativeFill", "DisableImageCreator", "DisableGenerativeErase") | ForEach-Object {
         Remove-ItemPropertyVerified -Path $Paint -Name $_
     }
 }
@@ -187,18 +195,64 @@ function Disable-NotepadAI {
     Write-Status -Types "-", "Win11" -Status "Disabling Notepad AI rewrite / Copilot..."
     Set-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Notepad" -Name "DisableAIFeatures" -Type DWord -Value 1
     Set-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Notepad" -Name "EnableWritingTools" -Type DWord -Value 0
+    Set-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Notepad" -Name "AIEnableRewrite" -Type DWord -Value 0
 }
 
 function Enable-NotepadAI {
     Write-Status -Types "*", "Win11" -Status "Restoring Notepad AI features..."
     Remove-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Notepad" -Name "DisableAIFeatures"
     Remove-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Notepad" -Name "EnableWritingTools"
+    Remove-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Notepad" -Name "AIEnableRewrite"
+}
+
+function Disable-PhotosAI {
+    Write-Status -Types "-", "Win11" -Status "Disabling Photos Generative Erase & Super Resolution AI..."
+    Set-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Photos" -Name "DisableGenerativeErase" -Type DWord -Value 1
+    Set-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Photos" -Name "DisableSuperResolution" -Type DWord -Value 1
+    Set-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Photos" -Name "DisableAIFeatures" -Type DWord -Value 1
+}
+
+function Enable-PhotosAI {
+    Write-Status -Types "*", "Win11" -Status "Restoring Photos AI features..."
+    Remove-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Photos" -Name "DisableGenerativeErase"
+    Remove-ItemPropertyVerified -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Photos" -Name "DisableSuperResolution"
+    Remove-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Photos" -Name "DisableAIFeatures"
+}
+
+function Disable-WindowsStudioEffects {
+    Write-Status -Types "-", "Win11" -Status "Disabling Windows Studio Effects camera/audio AI processing..."
+    Set-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Camera" -Name "AllowStudioEffects" -Type DWord -Value 0
+}
+
+function Enable-WindowsStudioEffects {
+    Write-Status -Types "*", "Win11" -Status "Restoring Windows Studio Effects..."
+    Remove-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Camera" -Name "AllowStudioEffects"
+}
+
+function Disable-PhiSilicaAndModelDownloads {
+    Write-Status -Types "-", "Win11" -Status "Blocking background AI model downloads & Phi Silica..."
+    Set-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "DisableModelDownloads" -Type DWord -Value 1
+}
+
+function Enable-PhiSilicaAndModelDownloads {
+    Write-Status -Types "*", "Win11" -Status "Restoring AI model download policies..."
+    Remove-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "DisableModelDownloads"
+}
+
+function Disable-SemanticSearch {
+    Write-Status -Types "-", "Win11" -Status "Disabling AI Semantic Search..."
+    Set-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "PreventSemanticSearch" -Type DWord -Value 1
+}
+
+function Enable-SemanticSearch {
+    Write-Status -Types "*", "Win11" -Status "Restoring Semantic Search..."
+    Remove-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "PreventSemanticSearch"
 }
 
 function Disable-WindowsAIService {
-    Write-Status -Types "-", "Win11" -Status "Setting Windows AI Fabric service to Manual..."
-    Set-ServiceStartup -State 'Manual' -Services @("WSAIFabricSvc")
-    Set-ItemPropertyVerified -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WSAIFabricSvc" -Name "Start" -Type DWord -Value 3
+    Write-Status -Types "-", "Win11" -Status "Disabling Windows AI Fabric service..."
+    Set-ServiceStartup -State 'Disabled' -Services @("WSAIFabricSvc")
+    Try { Stop-Service "WSAIFabricSvc" -Force -ErrorAction SilentlyContinue } Catch { }
 }
 
 function Enable-WindowsAIService {

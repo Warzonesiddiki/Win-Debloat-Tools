@@ -18,7 +18,7 @@ function Show-SystemHealth {
         [Switch] $Silent
     )
 
-    Write-Title "Windows 11 system health"
+    Write-Title "Windows 11 System Health & Privacy Status"
 
     $Profile = Get-HardwareProfile
     $Win = $Profile.Windows
@@ -46,13 +46,18 @@ function Show-SystemHealth {
 
     $CopilotOff = (Get-RegistryDword "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" 0) -eq 1
     $RecallOff = (Get-RegistryDword "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" "AllowRecallEnablement" 1) -eq 0
+    $ClickToDoOff = (Get-RegistryDword "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" "DisableClickToDo" 0) -eq 1
+    $TelemetryOff = (Get-RegistryDword "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" "AllowTelemetry" 1) -eq 0
+    $BingSearchOff = (Get-RegistryDword "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" "BingSearchEnabled" 1) -eq 0
     $WidgetsOff = (Get-RegistryDword "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarDa" 1) -eq 0
     $TransparencyOff = (Get-RegistryDword "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "EnableTransparency" 1) -eq 0
     $VisualFx = Get-RegistryDword "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" 0
     $SysMain = "unknown"
     $Search = "unknown"
+    $AiFabric = "unknown"
     Try { $SysMain = (Get-Service SysMain -ErrorAction SilentlyContinue).StartType } Catch { }
     Try { $Search = (Get-Service WSearch -ErrorAction SilentlyContinue).StartType } Catch { }
+    Try { $AiFabric = (Get-Service WSAIFabricSvc -ErrorAction SilentlyContinue).StartType } Catch { }
 
     $Vbs = "unknown"
     Try {
@@ -70,7 +75,7 @@ function Show-SystemHealth {
         }
     }
 
-    $Title = "Windows 11 System Health"
+    $Title = "Windows 11 System Health & Privacy Status"
     $Message = @"
 Profile: $($Profile.Name)
 Hardware: $($Profile.RamGB) GB RAM | $($Profile.CpuCores) cores | $($Profile.DriveType)
@@ -82,20 +87,29 @@ Disk used ($env:SystemDrive): $UsedDisk / $TotalDisk GB ($FreeDisk GB free)
 Processes: $ProcCount
 User+Machine Run startups: $StartupCount
 -----------------------------------------------------------------
-Copilot policy off: $CopilotOff
-Recall blocked: $RecallOff
-Widgets hidden: $WidgetsOff
-Transparency off: $TransparencyOff
-VisualFX setting: $VisualFx (2 = best performance)
-SysMain: $SysMain
-Windows Search: $Search
-Memory Integrity (HVCI) enabled: $Vbs
+[Zero AI Status]
+- Copilot policy disabled: $CopilotOff
+- Windows Recall blocked: $RecallOff
+- Click to Do AI disabled: $ClickToDoOff
+- AI Fabric Service: $AiFabric
+
+[100% Privacy Status]
+- Telemetry level locked to 0: $TelemetryOff
+- Bing web search in Start off: $BingSearchOff
+- Widgets board hidden: $WidgetsOff
+
+[Smoothness & Performance Status]
+- Transparency off: $TransparencyOff
+- VisualFX setting: $VisualFx (2 = best performance)
+- SysMain / Superfetch: $SysMain
+- Windows Search Indexer: $Search
+- Memory Integrity (HVCI): $Vbs
 -----------------------------------------------------------------
 Recommendations:
 $(If ($Profile.IsConstrained) { '- This PC is constrained. Use "Optimize for Low-End PC" then reboot.' } Else { '- Hardware is comfortable. Apply Tweaks is enough.' })
-$(If ($FreeRamGB -lt 1.5) { '- Free RAM is critically low. Close browsers and disable startups.' } Else { '- RAM headroom looks acceptable after a reboot.' })
-$(If ($FreeDisk -lt 15) { '- Disk is almost full. Run Disk Cleanup + Remove Temporary Files.' } Else { '- Disk space is OK.' })
-- Defender, Windows Update, networking, and audio are never disabled by this toolkit.
+$(If ($FreeRamGB -lt 1.5) { '- Free RAM is critically low. Close heavy apps and disable startups.' } Else { '- RAM headroom looks healthy after reboot.' })
+$(If ($FreeDisk -lt 15) { '- Disk is almost full. Run Disk Cleanup + Remove Temporary Files.' } Else { '- Disk space is healthy.' })
+- Defender, Windows Update, networking, and audio are 100% preserved.
 "@
 
     Write-Host "`n$Message`n" -ForegroundColor Cyan

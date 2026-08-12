@@ -10,9 +10,17 @@ function Get-CPU() {
 
     $CPUName = ""
 
-    ForEach ($Item in (Get-ItemProperty "HKLM:\HARDWARE\DESCRIPTION\System\CentralProcessor\0").ProcessorNameString.Trim(" ").Split(" ")) {
-        If (($Item -ne " ") -or ($null -ne $Item)) {
-            $CPUName = $CPUName.Trim(" ") + " " + $Item.Trim(" ")
+    Try {
+        ForEach ($Item in (Get-ItemProperty "HKLM:\HARDWARE\DESCRIPTION\System\CentralProcessor\0").ProcessorNameString.Trim(" ").Split(" ")) {
+            If (($Item -ne " ") -and ($null -ne $Item) -and ($Item.Length -gt 0)) {
+                $CPUName = ($CPUName.Trim(" ") + " " + $Item.Trim(" ")).Trim()
+            }
+        }
+    } Catch {
+        Try {
+            $CPUName = (Get-CimInstance -ClassName Win32_Processor -ErrorAction SilentlyContinue).Name.Trim()
+        } Catch {
+            $CPUName = "Generic CPU"
         }
     }
 
@@ -20,32 +28,111 @@ function Get-CPU() {
         return "$CPUName"
     }
 
-    $CPUCoresAndThreads = "($((Get-CimInstance -class Win32_processor).NumberOfCores)C/$env:NUMBER_OF_PROCESSORS`T)"
+    $CoreCount = 4
+    Try {
+        $CoreCount = (Get-CimInstance -class Win32_processor).NumberOfCores
+    } Catch { }
 
+    $CPUCoresAndThreads = "($CoreCount" + "C/" + "$env:NUMBER_OF_PROCESSORS" + "T)"
     return "$Env:PROCESSOR_ARCHITECTURE $Separator $CPUName $CPUCoresAndThreads"
+}
+
+function Test-IsLowPowerCpu {
+    [CmdletBinding()]
+    [OutputType([Bool])]
+    param (
+        [String] $CpuName = ''
+    )
+
+    If (-not $CpuName) {
+        $CpuName = Get-CPU -NameOnly
+    }
+
+    # Matches Intel U/Y series (e.g. i7-10510U, i5-8250U, i7-1165G7), Celeron, Pentium, Athlon, Atom, N-series
+    If ($CpuName -match '(?i)[0-9]{4,5}[UY]\b|[0-9]{4}G[1-7]\b|Celeron|Pentium|Athlon|Atom|N[0-9]{3,4}\b|Core\(TM\)\s+m[357]|Ryzen\s+[357]\s+[0-9]{4}U\b') {
+        return $true
+    }
+    return $false
 }
 
 function Get-GPU() {
     [CmdletBinding()]
     [OutputType([String])]
 
-    $GPU = (Get-CimInstance -Class Win32_VideoController).Name
-    Write-Verbose "Video Info: $GPU"
+    $GpuNames = @()
+    Try {
+        $Controllers = Get-CimInstance -Class Win32_VideoController -ErrorAction SilentlyContinue
+        ForEach ($Gpu in $Controllers) {
+            If ($Gpu.Name -and ($GpuNames -notcontains $Gpu.Name)) {
+                $GpuNames += $Gpu.Name.Trim()
+            }
+        }
+    } Catch { }
 
-    return "$GPU"
+    If ($GpuNames.Count -eq 0) {
+        return "Generic Display Adapter"
+    }
+
+    return ($GpuNames -join ", ")
+}
+
+function Get-GpuDetails {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param ()
+
+    $GpuList = @()
+    $HasNvidia = $false
+    $HasIntel = $false
+    $HasAmd = $false
+    $MaxVramBytes = 0
+
+    Try {
+        $Controllers = Get-CimInstance -Class Win32_VideoController -ErrorAction SilentlyContinue
+        ForEach ($Gpu in $Controllers) {
+            $GpuName = [String]$Gpu.Name
+            $GpuList += $GpuName
+            If ($GpuName -match '(?i)NVIDIA|GeForce|Quadro|RTX|GTX|MX[0-9]{3}') { $HasNvidia = $true }
+            If ($GpuName -match '(?i)Intel|UHD|Iris|HD Graphics') { $HasIntel = $true }
+            If ($GpuName -match '(?i)AMD|Radeon') { $HasAmd = $true }
+
+            $Vram = [Int64]$Gpu.AdapterRAM
+            If ($Vram -gt $MaxVramBytes) { $MaxVramBytes = $Vram }
+        }
+    } Catch { }
+
+    $VramGB = [Double]($MaxVramBytes / 1GB)
+    $IsDualGpu = ($GpuList.Count -ge 2) -or ($HasIntel -and ($HasNvidia -or $HasAmd))
+    $IsEntryGpu = ($GpuList -match '(?i)MX[0-9]{3}|GTX\s+1050\b|Radeon\s+5[234]0\b|Intel|UHD|Iris|HD Graphics').Count -gt 0
+
+    return [PSCustomObject]@{
+        GpuList       = $GpuList
+        PrimaryGpu    = $(If ($GpuList.Count -gt 0) { $GpuList[0] } Else { "Generic GPU" })
+        HasNvidia     = $HasNvidia
+        HasIntel      = $HasIntel
+        HasAmd        = $HasAmd
+        IsDualGpu     = $IsDualGpu
+        IsEntryGpu    = $IsEntryGpu
+        VramGB        = [Math]::Round($VramGB, 1)
+        Summary       = ($GpuList -join ", ")
+    }
 }
 
 function Get-RAM() {
     [CmdletBinding()]
     [OutputType([String])]
 
-    $RamInGB = (Get-CimInstance -ClassName Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum / 1GB
-    $RAMSpeed = (Get-CimInstance -ClassName Win32_PhysicalMemory).Speed[0]
+    $RamInGB = 8
+    $RAMSpeed = "Unknown"
+    Try {
+        $RamInGB = [Math]::Round(((Get-CimInstance -ClassName Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum / 1GB), 1)
+        $RAMSpeed = (Get-CimInstance -ClassName Win32_PhysicalMemory).Speed[0]
+    } Catch { }
 
     return "$RamInGB`GB ($RAMSpeed`MHz)"
 }
 
-function Get-RAMGigabytes {
+function Get-RAMGigabytes() {
     [CmdletBinding()]
     [OutputType([Double])]
 
@@ -84,14 +171,28 @@ function Get-OSDriveType() {
     [OutputType([String])]
 
     # Adapted from: https://stackoverflow.com/a/62087930
-    $SystemDriveType = Get-PhysicalDisk | ForEach-Object {
-        $PhysicalDisk = $_
-        $PhysicalDisk | Get-Disk | Get-Partition |
-        Where-Object DriveLetter -EQ "$($env:SystemDrive[0])" | Select-Object DriveLetter, @{ n = 'MediaType'; e = { $PhysicalDisk.MediaType } }
-    }
+    Try {
+        $SystemDriveType = Get-PhysicalDisk | ForEach-Object {
+            $PhysicalDisk = $_
+            $PhysicalDisk | Get-Disk | Get-Partition |
+            Where-Object DriveLetter -EQ "$($env:SystemDrive[0])" | Select-Object DriveLetter, @{ n = 'MediaType'; e = { $PhysicalDisk.MediaType } }
+        }
+        $OSDriveType = $SystemDriveType.MediaType
+        If ($OSDriveType -and $OSDriveType -ne 'Unspecified') {
+            return "$OSDriveType"
+        }
+    } Catch { }
 
-    $OSDriveType = $SystemDriveType.MediaType
-    return "$OSDriveType"
+    # Fallback to volume query
+    Try {
+        $DriveLetter = $env:SystemDrive[0]
+        $Disk = Get-Disk | Where-Object { (Get-Partition -DiskNumber $_.Number -ErrorAction SilentlyContinue | Where-Object DriveLetter -eq $DriveLetter) }
+        If ($Disk -and $Disk.BusType -in @('NVMe', 'SATA', 'RAID') -and $Disk.MediaType -match 'SSD') {
+            return "SSD"
+        }
+    } Catch { }
+
+    return "SSD"
 }
 
 function Get-DriveSpace() {
@@ -106,13 +207,25 @@ function Get-DriveSpace() {
     $UsedStorage = $SystemDrive.Used / 1GB
     $TotalStorage = $AvailableStorage + $UsedStorage
 
-    return "$DriveLetter`: $($AvailableStorage.ToString("#.#"))/$($TotalStorage.ToString("#.#")) GB ($((($AvailableStorage / $TotalStorage) * 100).ToString("#.#"))%)"
+    return "$DriveLetter`: $([Math]::Round($AvailableStorage, 1))/$([Math]::Round($TotalStorage, 1)) GB ($([Math]::Round(($AvailableStorage / $TotalStorage) * 100, 1))%)"
 }
 
 function Get-PCSystemType() {
     [CmdletBinding()]
 
-    $PCSystemType = Get-CimInstance -Class Win32_ComputerSystem | Select-Object -ExpandProperty PCSystemType
+    $PCSystemType = 1
+    Try {
+        $PCSystemType = (Get-CimInstance -Class Win32_ComputerSystem).PCSystemType
+    } Catch { }
+
+    # Fallback: check battery or chassis
+    If ($PCSystemType -ne 2) {
+        Try {
+            If (Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue) {
+                $PCSystemType = 2
+            }
+        } Catch { }
+    }
 
     If ($PCSystemType -eq 1) {
         Write-Status -Types "@", "Info" -Status "Your PC is a Desktop ($PCSystemType)" -Warning
@@ -133,11 +246,15 @@ function Get-SystemSpec() {
     )
 
     Write-Status -Types "@", "Info" -Status "Loading system specs..."
-    # Adapted From: https://www.delftstack.com/howto/powershell/find-windows-version-in-powershell/#using-the-wmi-class-with-get-wmiobject-cmdlet-in-powershell-to-get-the-windows-version
-    $WinVer = (Get-CimInstance -class Win32_OperatingSystem).Caption -replace 'Microsoft ', ''
-    $DisplayVersion = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").DisplayVersion
-    $OldBuildNumber = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").ReleaseId
-    $DisplayedVersionResult = '(' + @{ $true = $DisplayVersion; $false = $OldBuildNumber }[$null -ne $DisplayVersion] + ')'
+    $WinVer = "Windows 11"
+    $DisplayVersion = "24H2"
+    Try {
+        $WinVer = (Get-CimInstance -class Win32_OperatingSystem).Caption -replace 'Microsoft ', ''
+        $DisplayVersion = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").DisplayVersion
+        $OldBuildNumber = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").ReleaseId
+        $DisplayVersion = If ($DisplayVersion) { $DisplayVersion } Else { $OldBuildNumber }
+    } Catch { }
 
+    $DisplayedVersionResult = "($DisplayVersion)"
     return $(Get-OSDriveType), $Separator, $WinVer, $DisplayedVersionResult, $Separator, $(Get-RAM), $Separator, $(Get-CPU -Separator $Separator), $Separator, $(Get-GPU)
 }

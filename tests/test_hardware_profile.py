@@ -16,6 +16,9 @@ def resolve_hardware_profile(
     free_disk_gb: float = 64.0,
     is_laptop: int = 0,
     override_name: str = "",
+    is_low_power_cpu: bool = False,
+    dedicated_vram_gb: float = 0.0,
+    is_dual_gpu: bool = False,
 ) -> dict:
     drive = "SSD"
     lowered = (drive_type or "").lower()
@@ -31,13 +34,16 @@ def resolve_hardware_profile(
         name = "ExtremeLowEnd"
     elif ram_gb <= 8.5 or drive == "HDD" or cpu_cores <= 2:
         name = "LowEnd"
-    elif ram_gb <= 16.5:
+    elif ram_gb <= 16.5 or (bool(is_laptop) and is_low_power_cpu) or (0 < dedicated_vram_gb <= 2.0):
         name = "MidRange"
 
     if override_name in {"ExtremeLowEnd", "LowEnd", "MidRange", "HighEnd"}:
         name = override_name
 
     constrained = name in {"ExtremeLowEnd", "LowEnd"}
+    disable_transparency = (name != "HighEnd") or (0 < dedicated_vram_gb <= 2.0) or (bool(is_laptop) and is_low_power_cpu)
+    enable_hags = (name in {"MidRange", "HighEnd"}) and not (0 < dedicated_vram_gb <= 2.0) and not (bool(is_laptop) and is_low_power_cpu)
+
     return {
         "Name": name,
         "RamGB": round(ram_gb, 1),
@@ -45,16 +51,19 @@ def resolve_hardware_profile(
         "DriveType": drive,
         "FreeDiskGB": round(free_disk_gb, 1),
         "IsLaptop": bool(is_laptop),
+        "IsLowPowerCpu": is_low_power_cpu,
+        "DedicatedVramGB": round(dedicated_vram_gb, 1),
+        "IsDualGpu": is_dual_gpu,
         "IsConstrained": constrained,
         "DisableSysMain": constrained or drive == "HDD",
         "DisableSearch": name == "ExtremeLowEnd" or drive == "HDD" or ram_gb <= 8.5,
         "AggressiveVisuals": constrained,
-        "DisableTransparency": name != "HighEnd",
+        "DisableTransparency": disable_transparency,
         "DisableAnimations": constrained,
         "UseCompactOS": (free_disk_gb < 20) or (name == "ExtremeLowEnd" and free_disk_gb < 40),
         "DisableHibernate": (not bool(is_laptop)) and (name == "ExtremeLowEnd" or free_disk_gb < 15),
         "SystemResponsiveness": 10,
-        "EnableHAGS": name in {"MidRange", "HighEnd"},
+        "EnableHAGS": enable_hags,
         "PagefileStrategy": "FixedLowRam" if name == "ExtremeLowEnd" else "SystemManaged",
         "KeepMemoryCompression": True,
         "ProtectDefender": True,
@@ -63,6 +72,29 @@ def resolve_hardware_profile(
 
 
 class HardwareProfileTests(unittest.TestCase):
+    def test_target_machine_i7_10510u_20gb_mx330(self):
+        """Test user's target machine: i7-10510U, 20GB RAM, MX330 (2GB VRAM), 422GB free SSD laptop."""
+        p = resolve_hardware_profile(
+            ram_gb=20.0,
+            cpu_cores=4,
+            drive_type="SSD",
+            free_disk_gb=422.0,
+            is_laptop=1,
+            is_low_power_cpu=True,
+            dedicated_vram_gb=2.0,
+            is_dual_gpu=True,
+        )
+        self.assertEqual(p["Name"], "MidRange")
+        self.assertFalse(p["IsConstrained"])
+        self.assertFalse(p["DisableSysMain"])
+        self.assertFalse(p["DisableSearch"])
+        self.assertFalse(p["DisableAnimations"])
+        self.assertFalse(p["UseCompactOS"])
+        self.assertFalse(p["DisableHibernate"])
+        self.assertTrue(p["DisableTransparency"])  # Saves 300-500MB VRAM on the 2GB MX330
+        self.assertFalse(p["EnableHAGS"])  # Avoids micro-stutter on entry 2GB Pascal MX330
+        self.assertTrue(p["KeepMemoryCompression"])
+
     def test_extreme_4gb_hdd(self):
         p = resolve_hardware_profile(4, 2, "HDD", 20, 0)
         self.assertEqual(p["Name"], "ExtremeLowEnd")

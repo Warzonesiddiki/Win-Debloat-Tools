@@ -25,10 +25,9 @@ function Set-LowRamPagefile {
             New-CimInstance -ClassName Win32_PageFileSetting -Property @{ Name = "$Letter\pagefile.sys"; InitialSize = $InitialMb; MaximumSize = $MaximumMb } | Out-Null
         }
     } Catch {
-        Write-Status -Types "?", "Memory" -Status "Pagefile CIM change failed, using wmic fallback: $_" -Warning
+        Write-Status -Types "?", "Memory" -Status "Pagefile CIM change failed, applying native registry configuration..." -Warning
         Try {
-            wmic computersystem where name="%computername%" set AutomaticManagedPagefile=False | Out-Null
-            wmic pagefileset where name="$($Letter.Replace('\','\\'))\\pagefile.sys" set InitialSize=$InitialMb,MaximumSize=$MaximumMb | Out-Null
+            Set-ItemPropertyVerified -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "PagingFiles" -Type MultiString -Value @("$Letter\pagefile.sys $InitialMb $MaximumMb")
         } Catch {
             Write-Status -Types "?", "Memory" -Status "Could not set a fixed pagefile. Leaving system-managed." -Warning
         }
@@ -41,7 +40,11 @@ function Restore-SystemManagedPagefile {
         $Cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
         $Cs | Set-CimInstance -Property @{ AutomaticManagedPagefile = $true }
     } Catch {
-        Write-Status -Types "?", "Memory" -Status "Could not restore system-managed pagefile: $_" -Warning
+        Try {
+            Set-ItemPropertyVerified -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "PagingFiles" -Type MultiString -Value @("?:\pagefile.sys")
+        } Catch {
+            Write-Status -Types "?", "Memory" -Status "Could not restore system-managed pagefile: $_" -Warning
+        }
     }
 }
 

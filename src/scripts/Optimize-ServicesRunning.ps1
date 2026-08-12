@@ -3,10 +3,7 @@ Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-HardwareProfile.psm
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Set-ServiceStartup.psm1"
 
-# Adapted from: https://youtu.be/qWESrvP_uU8
-# Adapted from: https://github.com/ChrisTitusTech/win10script
-# Adapted from: https://gist.github.com/matthewjberger/2f4295887d6cb5738fa34e597f457b7f
-# Adapted from: https://github.com/Sycnex/Windows10Debloater
+# Hardware-Aware & Zero-AI Windows Services Optimizer
 
 function Optimize-ServicesRunning() {
     [CmdletBinding()]
@@ -20,96 +17,81 @@ function Optimize-ServicesRunning() {
     If (-not $HardwareProfile.DisableSysMain) { $EnableServicesOnSSD += "SysMain" }
     If (-not $HardwareProfile.DisableSearch) { $EnableServicesOnSSD += "WSearch" }
 
-    # Services which will be totally disabled
+    # Services which will be totally disabled (telemetry, AI, diagnostic hogs)
     $ServicesToDisabled = @(
-        "DiagTrack"                                 # DEFAULT: Automatic | Connected User Experiences and Telemetry
-        "diagnosticshub.standardcollector.service"  # DEFAULT: Manual    | Microsoft (R) Diagnostics Hub Standard Collector Service
-        "dmwappushservice"                          # DEFAULT: Manual    | Device Management Wireless Application Protocol (WAP)
-        "Fax"                                       # DEFAULT: Manual    | Fax Service
-        "fhsvc"                                     # DEFAULT: Manual    | File History Service
-        "GraphicsPerfSvc"                           # DEFAULT: Manual    | Graphics performance monitor service
-        "HomeGroupListener"                         # NOT FOUND (Win 10+)| HomeGroup Listener
-        "HomeGroupProvider"                         # NOT FOUND (Win 10+)| HomeGroup Provider
-        "lfsvc"                                     # DEFAULT: Manual    | Geolocation Service
-        "MapsBroker"                                # DEFAULT: Automatic | Downloaded Maps Manager
-        "PcaSvc"                                    # DEFAULT: Automatic | Program Compatibility Assistant (PCA)
-        "RemoteAccess"                              # DEFAULT: Disabled  | Routing and Remote Access
-        "RemoteRegistry"                            # DEFAULT: Disabled  | Remote Registry
-        "RetailDemo"                                # DEFAULT: Manual    | The Retail Demo Service controls device activity while the device is in retail demo mode.
-        "SysMain"                                   # DEFAULT: Automatic | SysMain / Superfetch (100% Disk usage on HDDs)
-        "TrkWks"                                    # DEFAULT: Automatic | Distributed Link Tracking Client
-        "WSearch"                                   # DEFAULT: Automatic | Windows Search (100% Disk usage on HDDs)
-        "WSAIFabricSvc"                             # DEFAULT: Manual    | Windows AI Fabric (Copilot+ / 24H2+)
-        # - Services which cannot be disabled (and shouldn't)
-        #"wscsvc"                                   # DEFAULT: Automatic | Windows Security Center Service
-        #"WdNisSvc"                                 # DEFAULT: Manual    | Windows Defender Network Inspection Service
-        #"wuauserv"                                 # Windows Update — NEVER disable
-        #"WinDefend"                                # Microsoft Defender — NEVER disable
-        #"Spooler"                                  # Print Spooler — NEVER disable by default
-        #"WlanSvc"                                  # Wi-Fi — NEVER disable
-        #"Audiosrv"                                 # Windows Audio — NEVER disable
+        "DiagTrack"                                 # Connected User Experiences and Telemetry
+        "diagnosticshub.standardcollector.service"  # Diagnostics Hub Standard Collector Service
+        "dmwappushservice"                          # Device Management Wireless Application Protocol (WAP)
+        "Fax"                                       # Fax Service
+        "fhsvc"                                     # File History Service
+        "GraphicsPerfSvc"                           # Graphics performance monitor service
+        "HomeGroupListener"                         # HomeGroup Listener (Legacy)
+        "HomeGroupProvider"                         # HomeGroup Provider (Legacy)
+        "lfsvc"                                     # Geolocation Service
+        "MapsBroker"                                # Downloaded Maps Manager
+        "PcaSvc"                                    # Program Compatibility Assistant (PCA)
+        "RemoteAccess"                              # Routing and Remote Access
+        "RemoteRegistry"                            # Remote Registry
+        "RetailDemo"                                # Retail Demo Service
+        "SysMain"                                   # SysMain / Superfetch (100% Disk usage on HDDs / constrained RAM)
+        "TrkWks"                                    # Distributed Link Tracking Client
+        "WSearch"                                   # Windows Search Indexing (Heavy disk I/O on HDDs)
+        "WSAIFabricSvc"                             # Windows AI Fabric (Copilot+ / 24H2+ NPU/AI Service)
+        "TroubleshootingSvc"                        # Recommended Troubleshooting Service
+        "WalletService"                             # Windows Wallet & NFC
     )
 
-    # Making the services to run only when needed as 'Manual' | Remove the # to set to Manual
+    # Making services run on-demand only (Manual)
     $ServicesToManual = @(
-        "BITS"                           # DEFAULT: Manual    | Background Intelligent Transfer Service
-        "edgeupdate"                     # DEFAULT: Automatic | Microsoft Edge Update Service
-        "edgeupdatem"                    # DEFAULT: Manual    | Microsoft Edge Update Service²
-        # FontCache stays Automatic — Manual causes first-paint lag on low-end PCs
-        "PhoneSvc"                       # DEFAULT: Manual    | Phone Service (Manages the telephony state on the device)
-        "SCardSvr"                       # DEFAULT: Manual    | Smart Card Service
-        "stisvc"                         # DEFAULT: Automatic | Windows Image Acquisition (WIA) Service
-        "WbioSrvc"                       # DEFAULT: Manual    | Windows Biometric Service (required for Fingerprint reader / Facial detection)
-        "wisvc"                          # DEFAULT: Manual    | Windows Insider Program Service
-        "WMPNetworkSvc"                  # DEFAULT: Manual    | Windows Media Player Network Sharing Service
-        "WpnService"                     # DEFAULT: Automatic | Windows Push Notification Services (WNS)
+        "BITS"                           # Background Intelligent Transfer Service
+        "edgeupdate"                     # Microsoft Edge Update Service
+        "edgeupdatem"                    # Microsoft Edge Update Service (Manual)
+        "PhoneSvc"                       # Phone Service
+        "SCardSvr"                       # Smart Card Service
+        "stisvc"                         # Windows Image Acquisition (WIA) Service
+        "WbioSrvc"                       # Windows Biometric Service
+        "wisvc"                          # Windows Insider Program Service
+        "WMPNetworkSvc"                  # Windows Media Player Network Sharing Service
+        "WpnService"                     # Windows Push Notification Services (WNS)
         <# Bluetooth services #>
-        "BTAGService"                    # DEFAULT: Manual    | Bluetooth Audio Gateway Service
-        "BthAvctpSvc"                    # DEFAULT: Manual    | AVCTP Service
-        "bthserv"                        # DEFAULT: Manual    | Bluetooth Support Service
-        "RtkBtManServ"                   # DEFAULT: Automatic | Realtek Bluetooth Device Manager Service
+        "BTAGService"                    # Bluetooth Audio Gateway Service
+        "BthAvctpSvc"                    # AVCTP Service
+        "bthserv"                        # Bluetooth Support Service
+        "RtkBtManServ"                   # Realtek Bluetooth Device Manager Service
         <# Diagnostic Services #>
-        "DPS"                            # DEFAULT: Automatic | Diagnostic Policy Service
-        "WdiServiceHost"                 # DEFAULT: Manual    | Diagnostic Service Host
-        "WdiSystemHost"                  # DEFAULT: Manual    | Diagnostic System Host
+        "DPS"                            # Diagnostic Policy Service
+        "WdiServiceHost"                 # Diagnostic Service Host
+        "WdiSystemHost"                  # Diagnostic System Host
         <# Network Services #>
-        "iphlpsvc"                       # DEFAULT: Automatic | IP Helper Service (IPv6 (6to4, ISATAP, Port Proxy and Teredo) and IP-HTTPS)
-        "lmhosts"                        # DEFAULT: Manual    | TCP/IP NetBIOS Helper
-        #"NetTcpPortSharing"             # DEFAULT: Disabled  | Net.Tcp Port Sharing Service
-        "SharedAccess"                   # DEFAULT: Manual    | Internet Connection Sharing (ICS)
+        "iphlpsvc"                       # IP Helper Service
+        "lmhosts"                        # TCP/IP NetBIOS Helper
+        "SharedAccess"                   # Internet Connection Sharing (ICS)
         <# Telemetry Services #>
-        "Wecsvc"                         # DEFAULT: Manual    | Windows Event Collector Service
-        "WerSvc"                         # DEFAULT: Manual    | Windows Error Reporting Service
+        "Wecsvc"                         # Windows Event Collector Service
+        "WerSvc"                         # Windows Error Reporting Service
         <# Xbox services #>
-        "XblAuthManager"                 # DEFAULT: Manual    | Xbox Live Auth Manager
-        "XblGameSave"                    # DEFAULT: Manual    | Xbox Live Game Save
-        "XboxGipSvc"                     # DEFAULT: Manual    | Xbox Accessory Management Service
-        "XboxNetApiSvc"                  # DEFAULT: Manual    | Xbox Live Networking Service
-        <# Printer services #>
-        #"PrintNotify"                   # DEFAULT: Manual    | WARNING! REMOVING WILL TURN PRINTING LESS MANAGEABLE | Printer Extensions and Notifications
-        #"Spooler"                       # DEFAULT: Automatic | WARNING! REMOVING WILL DISABLE PRINTING              | Print Spooler
-        <# Wi-Fi services #>
-        #"WlanSvc"                       # DEFAULT: Manual (No Wi-Fi devices) / Automatic (Wi-Fi devices) | WARNING! REMOVING WILL DISABLE WI-FI | WLAN AutoConfig
+        "XblAuthManager"                 # Xbox Live Auth Manager
+        "XblGameSave"                    # Xbox Live Game Save
+        "XboxGipSvc"                     # Xbox Accessory Management Service
+        "XboxNetApiSvc"                  # Xbox Live Networking Service
         <# 3rd Party Services #>
-        "gupdate"                        # DEFAULT: Automatic | Google Update Service
-        "gupdatem"                       # DEFAULT: Manual    | Google Update Service²
+        "gupdate"                        # Google Update Service
+        "gupdatem"                       # Google Update Service (Manual)
     )
 
-    # Do not force Ndu Automatic — Optimize-Performance disables it to cut RAM use.
     $ServicesToAutomatic = @()
 
-    Write-Title "Services tweaks"
-    Write-Section "Disabling services from Windows"
+    Write-Title "Hardware-Aware & Privacy Services Optimization"
+    Write-Section "Disabling Telemetry, AI, and Unnecessary Services"
 
     If ($Revert) {
-        Write-Status -Types "*", "Service" -Status "Reverting the tweaks is set to '$Revert'." -Warning
+        Write-Status -Types "*", "Service" -Status "Reverting services to default manual startup..." -Warning
         Set-ServiceStartup -State 'Manual' -Services $ServicesToDisabled -Filter $EnableServicesOnSSD
     } Else {
         Set-ServiceStartup -State 'Disabled' -Services $ServicesToDisabled -Filter $EnableServicesOnSSD
     }
 
-    Write-Section "Enabling services from Windows"
-
+    Write-Section "Managing Search / SysMain & Hardware-Aware Services"
     If (($IsSystemDriveSSD -or $Revert) -and $EnableServicesOnSSD.Count -gt 0) {
         Set-ServiceStartup -State 'Automatic' -Services $EnableServicesOnSSD
     }
@@ -120,11 +102,8 @@ function Optimize-ServicesRunning() {
     }
 }
 
-# List all services:
-#Get-Service | Select-Object StartType, Status, Name, DisplayName, ServiceType | Sort-Object StartType, Status, Name | Format-Table
-
-If (!$Revert) {
-    Optimize-ServicesRunning # Enable essential Services and Disable bloating Services
-} Else {
+If ($Revert -or $Global:Revert) {
     Optimize-ServicesRunning -Revert
+} Else {
+    Optimize-ServicesRunning
 }

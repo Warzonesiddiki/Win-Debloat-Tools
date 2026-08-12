@@ -1,4 +1,4 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Set-CapabilityState.psm1"
 
 function Remove-CapabilitiesList() {
@@ -37,8 +37,8 @@ function Remove-CapabilitiesList() {
 # List all Windows Capabilities:
 #Get-WindowsCapability -Online | Select-Object -Property State, Name, Online, RestartNeeded, LogPath, LogLevel | Sort-Object State, Name | Format-Table
 
-If (!$Revert) {
-    Remove-CapabilitiesList # Disable useless capabilities which came with Windows, but are legacy now and almost nobody cares
-} Else {
+If ($Revert -or $Global:Revert) {
     Remove-CapabilitiesList -Revert
+} Else {
+    Remove-CapabilitiesList
 }

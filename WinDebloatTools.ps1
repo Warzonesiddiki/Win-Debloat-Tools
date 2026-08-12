@@ -40,6 +40,7 @@ function Main() {
         Import-Module -DisableNameChecking "$PSScriptRoot\src\lib\ui\Show-MessageDialog.psm1" -Force
         Import-Module -DisableNameChecking "$PSScriptRoot\src\lib\ui\Ui-Helper.psm1" -Force
         Import-Module -DisableNameChecking "$PSScriptRoot\src\lib\Get-HardwareProfile.psm1" -Force
+        Import-Module -DisableNameChecking "$PSScriptRoot\src\lib\debloat-helper\Set-OptionalFeatureState.psm1" -Force
         Import-Module -DisableNameChecking "$PSScriptRoot\src\utils\Individual-Tweaks.psm1" -Force
         Import-Module -DisableNameChecking "$PSScriptRoot\src\utils\Windows11-Tweaks.psm1" -Force
         Import-Module -DisableNameChecking "$PSScriptRoot\src\utils\Install-Individual-System-Apps.psm1" -Force
@@ -332,9 +333,9 @@ function Show-GUI() {
     $InstallZotero = New-CheckBox -Text "Zotero" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $ClAcademicResearch
 
     $Cl2fa = New-Label -Text "2-Factor Authentication" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CaptionLabelHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[2] -FontStyle 'Bold' -ElementBefore $InstallZotero
-    $InstallTwilioAuthy = New-CheckBox -Text "Twilio Authy" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $Cl2fa
+    $InstallEnteAuth = New-CheckBox -Text "Ente Auth (2FA)" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $Cl2fa
 
-    $ClBootableUsb = New-Label -Text "Bootable USB" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CaptionLabelHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[2] -FontStyle 'Bold' -ElementBefore $InstallTwilioAuthy
+    $ClBootableUsb = New-Label -Text "Bootable USB" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CaptionLabelHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[2] -FontStyle 'Bold' -ElementBefore $InstallEnteAuth
     $InstallBalenaEtcher = New-CheckBox -Text "Etcher" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $ClBootableUsb
     $InstallRufus = New-CheckBox -Text "Rufus" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallBalenaEtcher
     $InstallVentoy = New-CheckBox -Text "Ventoy" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallRufus
@@ -342,7 +343,7 @@ function Show-GUI() {
     $ClVirtualMachines = New-Label -Text "Virtual Machines" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CaptionLabelHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[2] -FontStyle 'Bold' -ElementBefore $InstallVentoy
     $InstallOracleVirtualBox = New-CheckBox -Text "Oracle VM VirtualBox" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $ClVirtualMachines
     $InstallQemu = New-CheckBox -Text "QEMU" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallOracleVirtualBox
-    $InstallVmWarePlayer = New-CheckBox -Text "VMware Workstation Player" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallQemu
+    $InstallVmWarePro = New-CheckBox -Text "VMware Workstation Pro" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallQemu
 
     $ClCloudStorage = New-Label -Text "Cloud Storage" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CaptionLabelHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[2] -FontStyle 'Bold' -ElementBefore $InstallVmWarePlayer
     $InstallDropbox = New-CheckBox -Text "Dropbox" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $ClCloudStorage
@@ -473,8 +474,8 @@ function Show-GUI() {
     $InstallAndroidStudio = New-CheckBox -Text "Android Studio" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallAdb
     $InstallDockerDesktop = New-CheckBox -Text "Docker Desktop" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallAndroidStudio
     $InstallInsomnia = New-CheckBox -Text "Insomnia" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallDockerDesktop
-    $InstallJavaJdks = New-CheckBox -Text "Java - Adoptium JDK 8/11/18" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallInsomnia
-    $InstallJavaJre = New-CheckBox -Text "Java - Oracle JRE" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallJavaJdks
+    $InstallJavaJdks = New-CheckBox -Text "Java - Adoptium JDK 8/17/21 (LTS)" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallInsomnia
+    $InstallJavaJre = New-CheckBox -Text "Java - OpenJDK 21 JRE" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallJavaJdks
     $InstallMySql = New-CheckBox -Text "MySQL" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallJavaJre
     $InstallNodeJs = New-CheckBox -Text "NodeJS" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallMySql
     $InstallNodeJsLts = New-CheckBox -Text "NodeJS LTS" -Width $LayoutT2.PanelElementWidth -Height $LayoutT2.CheckBoxHeight -LocationX $LayoutT2.PanelElementX -FontSize $LayoutT2.Heading[3] -ElementBefore $InstallNodeJs
@@ -528,9 +529,9 @@ function Show-GUI() {
     $T2Panel1.Controls.AddRange(@($ClDocuments, $InstallAdobeReaderDC, $InstallLibreOffice, $InstallOnlyOffice, $InstallPDFCreator, $InstallPowerBi, $InstallSumatraPDF))
     $T2Panel1.Controls.AddRange(@($ClTorrent, $InstallqBittorrent))
     $T2Panel1.Controls.AddRange(@($ClAcademicResearch, $InstallZotero))
-    $T2Panel1.Controls.AddRange(@($Cl2fa, $InstallTwilioAuthy))
+    $T2Panel1.Controls.AddRange(@($Cl2fa, $InstallEnteAuth))
     $T2Panel1.Controls.AddRange(@($ClBootableUsb, $InstallBalenaEtcher, $InstallRufus, $InstallVentoy))
-    $T2Panel1.Controls.AddRange(@($ClVirtualMachines, $InstallOracleVirtualBox, $InstallQemu, $InstallVmWarePlayer))
+    $T2Panel1.Controls.AddRange(@($ClVirtualMachines, $InstallOracleVirtualBox, $InstallQemu, $InstallVmWarePro))
     $T2Panel1.Controls.AddRange(@($ClCloudStorage, $InstallDropbox, $InstallGoogleDrive))
     $T2Panel1.Controls.AddRange(@($ClUICustomization, $InstallRoundedTB, $InstallTranslucentTB))
     $T2Panel2.Controls.AddRange(@($InstallSelected))
@@ -1214,9 +1215,9 @@ function Show-GUI() {
                 $InstallZotero.CheckState = "Unchecked"
             }
 
-            If ($InstallTwilioAuthy.CheckState -eq "Checked") {
-                $AppsSelected.WingetApps.Add("Twilio.Authy")
-                $InstallTwilioAuthy.CheckState = "Unchecked"
+            If ($InstallEnteAuth.CheckState -eq "Checked") {
+                $AppsSelected.WingetApps.Add("Ente.EnteAuth")
+                $InstallEnteAuth.CheckState = "Unchecked"
             }
 
             If ($InstallBalenaEtcher.CheckState -eq "Checked") {
@@ -1244,9 +1245,9 @@ function Show-GUI() {
                 $InstallQemu.CheckState = "Unchecked"
             }
 
-            If ($InstallVmWarePlayer.CheckState -eq "Checked") {
-                $AppsSelected.WingetApps.Add("VMware.WorkstationPlayer")
-                $InstallVmWarePlayer.CheckState = "Unchecked"
+            If ($InstallVmWarePro.CheckState -eq "Checked") {
+                $AppsSelected.WingetApps.Add("VMware.WorkstationPro")
+                $InstallVmWarePro.CheckState = "Unchecked"
             }
 
             If ($InstallDropbox.CheckState -eq "Checked") {
@@ -1714,12 +1715,12 @@ function Show-GUI() {
             }
 
             If ($InstallJavaJdks.CheckState -eq "Checked") {
-                $AppsSelected.WingetApps.AddRange(@("EclipseAdoptium.Temurin.8.JDK", "EclipseAdoptium.Temurin.11.JDK", "EclipseAdoptium.Temurin.18.JDK"))
+                $AppsSelected.WingetApps.AddRange(@("EclipseAdoptium.Temurin.8.JDK", "EclipseAdoptium.Temurin.17.JDK", "EclipseAdoptium.Temurin.21.JDK"))
                 $InstallJavaJdks.CheckState = "Unchecked"
             }
 
             If ($InstallJavaJre.CheckState -eq "Checked") {
-                $AppsSelected.WingetApps.Add("Oracle.JavaRuntimeEnvironment")
+                $AppsSelected.WingetApps.Add("EclipseAdoptium.Temurin.21.JRE")
                 $InstallJavaJre.CheckState = "Unchecked"
             }
 
