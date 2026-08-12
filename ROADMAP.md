@@ -1,5 +1,18 @@
 # ROADMAP
 
+## 2026v1 — Windows 11 Low-End Edition
+
+- [x] Hardware-aware profiles (ExtremeLowEnd / LowEnd / MidRange / HighEnd).
+- [x] Windows 11 24H2/25H2 AI: Copilot, Recall, Click to Do, Edge/Paint/Notepad AI.
+- [x] Win11 shell: Widgets, Start Recommended, Gallery/Home, Snap suggestions.
+- [x] Low-end visuals, memory, CompactOS, Storage Sense, startup cleanup.
+- [x] CLI presets: CLI / LowEnd / Win11 / Safe.
+- [x] GUI: Low-End Turbo, Disable Windows 11 AI, System Health, new toggles.
+- [x] One-click `Win11-LowEnd.cmd`.
+- [x] Safety contract: Defender, Update, audio, Wi-Fi, printing never touched.
+- [x] Profile unit tests + CI job.
+- [x] Undo Tweaks covers the new scripts and startup backup.
+
 ## To Do (Cancelled)
 
 - [ ] Unpin All "mocked" apps (Apps on the Start Menu which are not installed, but are there).

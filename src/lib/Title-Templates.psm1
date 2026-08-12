@@ -1,4 +1,4 @@
-﻿function Get-AllStyle() {
+function Get-AllStyle() {
     [CmdletBinding()]
     param (
         [Parameter(Position = 0)]
@@ -43,7 +43,7 @@ function Write-ScriptLogo() {
 "@
     Write-Style $ASCIIText -Style Blink -Color Green -BackColor Black
     Write-Style "`n        <•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••>" -Color White -BackColor Black
-    Write-Style "                          It's Time to Debloat Windows! By LeDragoX & Community" -Style Blink -Color Cyan
+    Write-Style "                 Windows 11 Low-End Edition — smooth on 4 GB. By LeDragoX & Community" -Style Blink -Color Cyan
 }
 
 function Write-Section() {

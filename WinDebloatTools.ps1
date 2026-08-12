@@ -1,4 +1,4 @@
-﻿# Learned from: https://docs.microsoft.com/en-us/powershell/scripting/samples/creating-a-custom-input-box?view=powershell-7.1
+# Learned from: https://docs.microsoft.com/en-us/powershell/scripting/samples/creating-a-custom-input-box?view=powershell-7.1
 # Adapted majorly from https://github.com/ChrisTitusTech/win10script and https://github.com/Sycnex/Windows10Debloater
 # Take Ownership tweak from: https://www.howtogeek.com/howto/windows-vista/add-take-ownership-to-explorer-right-click-menu-in-vista/
 
@@ -6,7 +6,7 @@ function Main() {
     [CmdletBinding()]
     param (
         [Parameter(Position = 0)]
-        [ValidateSet('CLI', 'GUI')]
+        [ValidateSet('CLI', 'GUI', 'LowEnd', 'Win11', 'Safe')]
         [String] $Mode = 'GUI'
     )
 
@@ -14,7 +14,7 @@ function Main() {
         $Script:NeedRestart = $false
         $Script:DoneTitle = "Information"
         $Script:DoneMessage = "Process Completed!"
-        $Host.UI.RawUI.WindowTitle = '🚀 Win Debloat Tools'
+        $Host.UI.RawUI.WindowTitle = 'Win Debloat Tools — Windows 11 Low-End'
     }
 
     Process {
@@ -39,7 +39,9 @@ function Main() {
         Import-Module -DisableNameChecking "$PSScriptRoot\src\lib\ui\New-LayoutPage.psm1" -Force
         Import-Module -DisableNameChecking "$PSScriptRoot\src\lib\ui\Show-MessageDialog.psm1" -Force
         Import-Module -DisableNameChecking "$PSScriptRoot\src\lib\ui\Ui-Helper.psm1" -Force
+        Import-Module -DisableNameChecking "$PSScriptRoot\src\lib\Get-HardwareProfile.psm1" -Force
         Import-Module -DisableNameChecking "$PSScriptRoot\src\utils\Individual-Tweaks.psm1" -Force
+        Import-Module -DisableNameChecking "$PSScriptRoot\src\utils\Windows11-Tweaks.psm1" -Force
         Import-Module -DisableNameChecking "$PSScriptRoot\src\utils\Install-Individual-System-Apps.psm1" -Force
 
         Set-ConsoleStyle
@@ -62,7 +64,15 @@ function Main() {
         } Else { Write-Caption "Arguments: None, running GUI" }
 
         If ($Mode -eq 'CLI') {
-            Open-DebloatScript -Mode $Mode
+            Open-DebloatScript -Mode 'CLI' -Preset 'Full'
+        } ElseIf ($Mode -eq 'LowEnd') {
+            $env:WIN_DEBLOAT_FORCE_AGGRESSIVE = '1'
+            $env:WIN_DEBLOAT_PROFILE_OVERRIDE = 'ExtremeLowEnd'
+            Open-DebloatScript -Mode 'CLI' -Preset 'LowEnd'
+        } ElseIf ($Mode -eq 'Win11') {
+            Open-DebloatScript -Mode 'CLI' -Preset 'Win11'
+        } ElseIf ($Mode -eq 'Safe') {
+            Open-DebloatScript -Mode 'CLI' -Preset 'Safe'
         } Else { Show-GUI }
     }
 
@@ -75,17 +85,15 @@ function Main() {
     }
 }
 
-function Open-DebloatScript {
+function Get-DebloatScriptList {
     [CmdletBinding()]
-    param(
-        [Parameter(Position = 0)]
-        [ValidateSet('CLI', 'GUI')]
-        [String] $Mode = 'GUI'
+    param (
+        [ValidateSet('Full', 'LowEnd', 'Win11', 'Safe')]
+        [String] $Preset = 'Full'
     )
 
-    $Scripts = @(
-        # [Recommended order]
-        "Backup-System.ps1",
+    $Backup = @("Backup-System.ps1")
+    $Core = @(
         "Invoke-DebloatSoftware.ps1",
         "Optimize-TaskScheduler.ps1",
         "Optimize-ServicesRunning.ps1",
@@ -97,6 +105,35 @@ function Open-DebloatScript {
         "Remove-CapabilitiesList.ps1",
         "Optimize-WindowsFeaturesList.ps1"
     )
+    $Win11 = @(
+        "Optimize-Windows11.ps1",
+        "Disable-WindowsAI.ps1"
+    )
+    $LowEnd = @(
+        "Optimize-LowEndPC.ps1",
+        "Optimize-StartupApps.ps1",
+        "Optimize-VisualEffects.ps1",
+        "Optimize-Memory.ps1"
+    )
+
+    Switch ($Preset) {
+        'Win11' { return $Backup + @("Remove-BloatwareAppsList.ps1", "Optimize-Privacy.ps1") + $Win11 }
+        'Safe' { return $Backup + @("Remove-BloatwareAppsList.ps1", "Optimize-Privacy.ps1", "Register-PersonalTweaksList.ps1") + $Win11 }
+        Default { return $Backup + $Core + $Win11 + $LowEnd }
+    }
+}
+
+function Open-DebloatScript {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)]
+        [ValidateSet('CLI', 'GUI')]
+        [String] $Mode = 'GUI',
+        [ValidateSet('Full', 'LowEnd', 'Win11', 'Safe')]
+        [String] $Preset = 'Full'
+    )
+
+    $Scripts = Get-DebloatScriptList -Preset $Preset
 
     If ($Mode -eq 'CLI') {
         Open-PowerShellFilesCollection -RelativeLocation "src\scripts" -Scripts $Scripts -DoneTitle $DoneTitle -DoneMessage $DoneMessage -OpenFromGUI $false
@@ -131,13 +168,13 @@ function Show-GUI() {
 
     # <===== Specific Layout =====>
 
-    $LayoutT1 = New-LayoutPage -NumOfPanels 3 -PanelHeight 1065
+    $LayoutT1 = New-LayoutPage -NumOfPanels 3 -PanelHeight 1450
     $LayoutT2 = New-LayoutPage -NumOfPanels 4 -PanelHeight 1870
 
     # <===== UI =====>
 
     # Main Window:
-    $Form = New-Form -Width $LayoutT1.FormWidth -Height $LayoutT1.FormHeight -Text "Win Debloat Tools | $(Get-SystemSpec)" -BackColor $BrandColors.Win.Dark -FormBorderStyle 'Sizable' # Loading the specs takes longer time to load the GUI
+    $Form = New-Form -Width $LayoutT1.FormWidth -Height $LayoutT1.FormHeight -Text "Win Debloat Tools | Windows 11 Low-End | $(Get-SystemSpec)" -BackColor $BrandColors.Win.Dark -FormBorderStyle 'Sizable' # Loading the specs takes longer time to load the GUI
 
     $Form = New-FormIcon -Form $Form -ImageLocation "$PSScriptRoot\src\assets\script-icon-32px.png"
 
@@ -177,11 +214,19 @@ function Show-GUI() {
     $CbTelemetry = New-CheckBox -Text "Enable Telemetry" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.CheckBoxHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $CbSearchAppForUnknownExt
     $CbWindowsSpotlight = New-CheckBox -Text "Enable Windows Spotlight" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.CheckBoxHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $CbTelemetry
     $CbXboxGameBarDVRandMode = New-CheckBox -Text "Enable Xbox Game Bar/DVR/Mode" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.CheckBoxHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $CbWindowsSpotlight
+    $CbWindowsCopilot = New-CheckBox -Text "Enable Windows Copilot" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.CheckBoxHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $CbXboxGameBarDVRandMode
+    $CbWindowsRecall = New-CheckBox -Text "Enable Windows Recall" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.CheckBoxHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $CbWindowsCopilot
+    $CbWidgetsBoard = New-CheckBox -Text "Enable Widgets Board" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.CheckBoxHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $CbWindowsRecall
+    $CbTransparencyEffects = New-CheckBox -Text "Enable Transparency Effects" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.CheckBoxHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $CbWidgetsBoard
+    $CbVisualAnimations = New-CheckBox -Text "Enable Visual Animations" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.CheckBoxHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $CbTransparencyEffects
+    $CbFastStartup = New-CheckBox -Text "Enable Fast Startup" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.CheckBoxHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $CbVisualAnimations
 
     # ==> T1 Panel 2
     $ClDebloatTools = New-Label -Text "System Debloat Tools" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.CaptionLabelHeight -LocationX $LayoutT1.PanelElementX -LocationY 0 -FontSize $LayoutT1.Heading[2] -FontStyle 'Bold'
     $ApplyTweaks = New-Button -Text "Apply Tweaks" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.ButtonHeight -LocationX $LayoutT1.PanelElementX -ElementBefore $ClDebloatTools -FontSize $LayoutT1.Heading[3] -FontStyle 'Bold' -BackColor $Colors.Cyan -ForeColor $Colors.DarkGray
-    $UndoTweaks = New-Button -Text "Undo Tweaks" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.ButtonHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $ApplyTweaks -MarginTop $LayoutT1.DistanceBetweenElements -BackColor $Colors.WarningYellow -ForeColor $Colors.DarkGray
+    $OptimizeLowEnd = New-Button -Text "Optimize for Low-End PC" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.ButtonHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -FontStyle 'Bold' -ElementBefore $ApplyTweaks -MarginTop $LayoutT1.DistanceBetweenElements -BackColor $Colors.LightGreen -ForeColor $Colors.DarkGray
+    $DisableWindowsAI = New-Button -Text "Disable Windows 11 AI" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.ButtonHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -FontStyle 'Bold' -ElementBefore $OptimizeLowEnd -MarginTop $LayoutT1.DistanceBetweenElements -ForeColor $Colors.Cyan
+    $UndoTweaks = New-Button -Text "Undo Tweaks" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.ButtonHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $DisableWindowsAI -MarginTop $LayoutT1.DistanceBetweenElements -BackColor $Colors.WarningYellow -ForeColor $Colors.DarkGray
     $DiskCleanUp = New-Button -Text "Run a Disk Cleanup" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.ButtonHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $UndoTweaks -MarginTop $LayoutT1.DistanceBetweenElements -ForeColor $Colors.Cyan
     $RemoveTemporaryFiles = New-Button -Text "Remove Temporary Files" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.ButtonHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $DiskCleanUp -MarginTop $LayoutT1.DistanceBetweenElements -ForeColor $Colors.Cyan
     $RemoveWindowsOld = New-Button -Text "Remove Windows.old Folder" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.ButtonHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $RemoveTemporaryFiles -MarginTop $LayoutT1.DistanceBetweenElements -ForeColor $Colors.WarningYellow
@@ -207,6 +252,7 @@ function Show-GUI() {
     $ReinstallBloatApps = New-Button -Text "Reinstall Pre-Installed Apps" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.ButtonHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $RandomizeSystemColor -MarginTop $LayoutT1.DistanceBetweenElements
     $RepairWindows = New-Button -Text "Repair Windows" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.ButtonHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $ReinstallBloatApps -MarginTop $LayoutT1.DistanceBetweenElements
     $ShowDebloatInfo = New-Button -Text "Show Debloat Info" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.ButtonHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $RepairWindows -MarginTop $LayoutT1.DistanceBetweenElements
+    $ShowSystemHealth = New-Button -Text "Show System Health" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.ButtonHeight -LocationX $LayoutT1.PanelElementX -FontSize $LayoutT1.Heading[3] -ElementBefore $ShowDebloatInfo -MarginTop $LayoutT1.DistanceBetweenElements -ForeColor $Colors.Cyan
 
     # ==> T1 Panel 3
     $ClWindowsUpdate = New-Label -Text "Windows Update" -Width $LayoutT1.PanelElementWidth -Height $LayoutT1.CaptionLabelHeight -LocationX $LayoutT1.PanelElementX -LocationY 0 -FontSize $LayoutT1.Heading[2] -FontStyle 'Bold'
@@ -464,10 +510,10 @@ function Show-GUI() {
     $TabSoftwareInstall.Controls.AddRange(@($TlSoftwareInstall, $ClSoftwareInstall, $T2Panel1, $T2Panel2, $T2Panel3, $T2Panel4))
     $TabSettings.Controls.AddRange(@($TlSettings, $T3PanelPackageManagersSettings))
     # Add Elements to each Tab Panel
-    $T1Panel1.Controls.AddRange(@($ClCustomizeFeatures, $CbDarkTheme, $CbActivityHistory, $CbBackgroundsApps, $CbClipboardHistory, $CbClipboardSyncAcrossDevice, $CbCortana, $CbHibernate, $CbLegacyContextMenu, $CbLocationTracking, $CbNewsAndInterest, $CbOldVolumeControl, $CbOnlineSpeechRecognition, $CbPhoneLink, $CbPhotoViewer, $CbSearchAppForUnknownExt, $CbTelemetry, $CbWindowsSpotlight, $CbXboxGameBarDVRandMode))
-    $T1Panel2.Controls.AddRange(@($ClDebloatTools, $ApplyTweaks, $UndoTweaks, $DiskCleanUp, $RemoveTemporaryFiles, $RemoveWindowsOld, $RemoveMSEdge, $RemoveOneDrive, $RemoveXbox, $PictureBox1))
+    $T1Panel1.Controls.AddRange(@($ClCustomizeFeatures, $CbDarkTheme, $CbActivityHistory, $CbBackgroundsApps, $CbClipboardHistory, $CbClipboardSyncAcrossDevice, $CbCortana, $CbHibernate, $CbLegacyContextMenu, $CbLocationTracking, $CbNewsAndInterest, $CbOldVolumeControl, $CbOnlineSpeechRecognition, $CbPhoneLink, $CbPhotoViewer, $CbSearchAppForUnknownExt, $CbTelemetry, $CbWindowsSpotlight, $CbXboxGameBarDVRandMode, $CbWindowsCopilot, $CbWindowsRecall, $CbWidgetsBoard, $CbTransparencyEffects, $CbVisualAnimations, $CbFastStartup))
+    $T1Panel2.Controls.AddRange(@($ClDebloatTools, $ApplyTweaks, $OptimizeLowEnd, $DisableWindowsAI, $UndoTweaks, $DiskCleanUp, $RemoveTemporaryFiles, $RemoveWindowsOld, $RemoveMSEdge, $RemoveOneDrive, $RemoveXbox, $PictureBox1))
     $T1Panel2.Controls.AddRange(@($ClInstallSystemApps, $InstallDolbyAudio, $InstallMicrosoftEdge, $InstallOneDrive, $InstallPaintPaint3D, $InstallPhoneLink, $InstallQuickAssist, $InstallSoundRecorder, $InstallTaskbarWidgets, $InstallUWPWMediaPlayer, $InstallXbox))
-    $T1Panel2.Controls.AddRange(@($ClOtherTools, $RandomizeSystemColor, $ReinstallBloatApps, $RepairWindows, $ShowDebloatInfo))
+    $T1Panel2.Controls.AddRange(@($ClOtherTools, $RandomizeSystemColor, $ReinstallBloatApps, $RepairWindows, $ShowDebloatInfo, $ShowSystemHealth))
     $T1Panel3.Controls.AddRange(@($ClWindowsUpdate, $CbAutomaticWindowsUpdate))
     $T1Panel3.Controls.AddRange(@($ClOptionalFeatures, $CbHyperV, $CbInternetExplorer, $CbPrintToPDFServices, $CbPrintingXPSServices, $CbWindowsMediaPlayer, $CbWindowsSandbox))
     $T1Panel3.Controls.AddRange(@($ClTaskScheduler, $CbFamilySafety))
@@ -512,7 +558,25 @@ function Show-GUI() {
 
     $ApplyTweaks.Add_Click( {
             Set-RevertStatus -Revert $false
-            Open-DebloatScript
+            Open-DebloatScript -Preset 'Full'
+            $PictureBox1.ImageLocation = "$PSScriptRoot\src\assets\script-image2.png"
+            $Form.Update()
+        })
+
+    $OptimizeLowEnd.Add_Click( {
+            Set-RevertStatus -Revert $false
+            $env:WIN_DEBLOAT_FORCE_AGGRESSIVE = '1'
+            $env:WIN_DEBLOAT_PROFILE_OVERRIDE = 'ExtremeLowEnd'
+            Open-DebloatScript -Preset 'LowEnd'
+            $env:WIN_DEBLOAT_FORCE_AGGRESSIVE = $null
+            $env:WIN_DEBLOAT_PROFILE_OVERRIDE = $null
+            $PictureBox1.ImageLocation = "$PSScriptRoot\src\assets\script-image2.png"
+            $Form.Update()
+        })
+
+    $DisableWindowsAI.Add_Click( {
+            Set-RevertStatus -Revert $false
+            Open-PowerShellFilesCollection -RelativeLocation "src\scripts" -Scripts @("Backup-System.ps1", "Disable-WindowsAI.ps1", "Optimize-Windows11.ps1") -DoneTitle $DoneTitle -DoneMessage $DoneMessage
             $PictureBox1.ImageLocation = "$PSScriptRoot\src\assets\script-image2.png"
             $Form.Update()
         })
@@ -528,6 +592,12 @@ function Show-GUI() {
                 "Register-PersonalTweaksList.ps1",
                 "Remove-CapabilitiesList.ps1",
                 "Optimize-WindowsFeaturesList.ps1",
+                "Optimize-Windows11.ps1",
+                "Disable-WindowsAI.ps1",
+                "Optimize-LowEndPC.ps1",
+                "Optimize-StartupApps.ps1",
+                "Optimize-VisualEffects.ps1",
+                "Optimize-Memory.ps1",
                 "Install-DefaultAppsList.ps1"
             )
             Open-PowerShellFilesCollection -RelativeLocation "src\scripts" -Scripts $Scripts -DoneTitle $DoneTitle -DoneMessage $DoneMessage
@@ -619,6 +689,10 @@ function Show-GUI() {
 
     $ShowDebloatInfo.Add_Click( {
             Open-PowerShellFilesCollection -RelativeLocation "src\scripts\other-scripts" -Scripts @("Show-DebloatInfo.ps1") -NoDialog
+        })
+
+    $ShowSystemHealth.Add_Click( {
+            Open-PowerShellFilesCollection -RelativeLocation "src\scripts\other-scripts" -Scripts @("Show-SystemHealth.ps1") -NoDialog
         })
 
     $CbAutomaticWindowsUpdate.Add_Click( {
@@ -808,6 +882,66 @@ function Show-GUI() {
             } Else {
                 Disable-XboxGameBarDVRandMode
                 $CbXboxGameBarDVRandMode.Text = "[OFF] Xbox Game Bar/DVR/Mode"
+            }
+        })
+
+    $CbWindowsCopilot.Add_Click( {
+            If ($CbWindowsCopilot.CheckState -eq "Checked") {
+                Enable-WindowsCopilot
+                $CbWindowsCopilot.Text = "[ON]  Windows Copilot *"
+            } Else {
+                Disable-WindowsCopilot
+                $CbWindowsCopilot.Text = "[OFF] Windows Copilot"
+            }
+        })
+
+    $CbWindowsRecall.Add_Click( {
+            If ($CbWindowsRecall.CheckState -eq "Checked") {
+                Enable-WindowsRecall
+                $CbWindowsRecall.Text = "[ON]  Windows Recall *"
+            } Else {
+                Disable-WindowsRecall
+                $CbWindowsRecall.Text = "[OFF] Windows Recall"
+            }
+        })
+
+    $CbWidgetsBoard.Add_Click( {
+            If ($CbWidgetsBoard.CheckState -eq "Checked") {
+                Enable-WidgetsBoard
+                $CbWidgetsBoard.Text = "[ON]  Widgets Board *"
+            } Else {
+                Disable-WidgetsBoard
+                $CbWidgetsBoard.Text = "[OFF] Widgets Board"
+            }
+        })
+
+    $CbTransparencyEffects.Add_Click( {
+            If ($CbTransparencyEffects.CheckState -eq "Checked") {
+                Enable-TransparencyEffects
+                $CbTransparencyEffects.Text = "[ON]  Transparency Effects *"
+            } Else {
+                Disable-TransparencyEffects
+                $CbTransparencyEffects.Text = "[OFF] Transparency Effects"
+            }
+        })
+
+    $CbVisualAnimations.Add_Click( {
+            If ($CbVisualAnimations.CheckState -eq "Checked") {
+                Enable-VisualAnimations
+                $CbVisualAnimations.Text = "[ON]  Visual Animations *"
+            } Else {
+                Disable-VisualAnimations
+                $CbVisualAnimations.Text = "[OFF] Visual Animations"
+            }
+        })
+
+    $CbFastStartup.Add_Click( {
+            If ($CbFastStartup.CheckState -eq "Checked") {
+                Enable-FastStartup
+                $CbFastStartup.Text = "[ON]  Fast Startup *"
+            } Else {
+                Disable-FastStartup
+                $CbFastStartup.Text = "[OFF] Fast Startup"
             }
         })
 

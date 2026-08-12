@@ -1,4 +1,4 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\Title-Templates.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\Title-Templates.psm1"
 
 function Get-CPU() {
     [CmdletBinding()]
@@ -43,6 +43,17 @@ function Get-RAM() {
     $RAMSpeed = (Get-CimInstance -ClassName Win32_PhysicalMemory).Speed[0]
 
     return "$RamInGB`GB ($RAMSpeed`MHz)"
+}
+
+function Get-RAMGigabytes {
+    [CmdletBinding()]
+    [OutputType([Double])]
+
+    Try {
+        return [Double]((Get-CimInstance -ClassName Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum / 1GB)
+    } Catch {
+        return [Double]8
+    }
 }
 
 function Get-OSArchitecture() {

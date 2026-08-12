@@ -1,4 +1,4 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Set-ItemPropertyVerified.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Set-ItemPropertyVerified.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
 
 $Script:TweakType = "Backup"
@@ -8,7 +8,7 @@ function New-RestorePoint() {
     Set-ItemPropertyVerified -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore" -Name "SystemRestorePointCreationFrequency" -Type DWord -Value 0
     Write-Status -Types "+", $TweakType -Status "Enabling system drive Restore Point..."
     Enable-ComputerRestore -Drive "$env:SystemDrive\"
-    Checkpoint-Computer -Description "Win 10 Restore Point" -RestorePointType "MODIFY_SETTINGS"
+    Checkpoint-Computer -Description "Win-Debloat-Tools Windows 11 Restore Point" -RestorePointType "MODIFY_SETTINGS"
 }
 
 function Backup-HostsFile() {

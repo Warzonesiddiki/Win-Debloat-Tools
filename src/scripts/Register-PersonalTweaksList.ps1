@@ -1,4 +1,5 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-HardwareInfo.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-HardwareInfo.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-HardwareProfile.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Open-File.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Remove-ItemVerified.psm1"
@@ -197,8 +198,14 @@ function Register-PersonalTweaksList() {
 
     If (!$Revert) { Enable-DarkTheme } Else { Disable-DarkTheme }
 
-    Write-Status -Types "*", $TweakType -Status "Restoring Taskbar transparency..."
-    Set-ItemPropertyVerified -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Type DWord -Value 1
+    $HardwareProfile = Get-HardwareProfile -Quiet
+    If ($HardwareProfile.DisableTransparency -and -not $Revert) {
+        Write-Status -Types "-", $TweakType -Status "Disabling Taskbar/window transparency on $($HardwareProfile.Name)..."
+        Set-ItemPropertyVerified -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Type DWord -Value 0
+    } Else {
+        Write-Status -Types "*", $TweakType -Status "Restoring Taskbar transparency..."
+        Set-ItemPropertyVerified -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Type DWord -Value 1
+    }
 
     Write-Section "System"
     Write-Caption "Multitasking"

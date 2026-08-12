@@ -1,0 +1,20 @@
+{
+  "version": 6,
+  "project": "Win-Debloat-Tools-Windows11-LowEnd",
+  "updated": "2026-08-12",
+  "entities": [
+    { "id": "profile-engine", "type": "module", "path": "src/lib/Get-HardwareProfile.psm1" },
+    { "id": "win11-tweaks", "type": "module", "path": "src/utils/Windows11-Tweaks.psm1" },
+    { "id": "lowend-cmd", "type": "entrypoint", "path": "Win11-LowEnd.cmd" },
+    { "id": "gui", "type": "entrypoint", "path": "WinDebloatTools.ps1" },
+    { "id": "safety", "type": "doc", "path": "docs/SAFETY.md" }
+  ],
+  "decisions": [
+    { "from": "profile-engine", "to": "sysmain", "rel": "disables_when_constrained" },
+    { "from": "profile-engine", "to": "hags", "rel": "enables_only_mid_high" },
+    { "from": "win11-tweaks", "to": "copilot", "rel": "disables" },
+    { "from": "win11-tweaks", "to": "recall", "rel": "disables" },
+    { "from": "safety", "to": "defender", "rel": "protects" },
+    { "from": "safety", "to": "windows-update", "rel": "protects" }
+  ]
+}

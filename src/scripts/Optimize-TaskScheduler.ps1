@@ -1,4 +1,4 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Set-ScheduledTaskState.psm1"
 
 # Adapted from: https://youtu.be/qWESrvP_uU8
@@ -38,6 +38,19 @@ function Optimize-TaskScheduler() {
         "\Microsoft\Windows\Shell\FamilySafetyRefreshTask"                                # Recommended state for VDI use
         "\Microsoft\Windows\Shell\FamilySafetyUpload"
         "\Microsoft\Windows\Windows Media Sharing\UpdateLibrary"                          # Recommended state for VDI use
+        "\Microsoft\Windows\Application Experience\PcaPatchDbTask"
+        "\Microsoft\Windows\Application Experience\MareBackup"
+        "\Microsoft\Windows\Feedback\Siuf\DmClient"
+        "\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload"
+        "\Microsoft\Windows\Flighting\FeatureConfig\ReconcileFeatures"
+        "\Microsoft\Windows\Flighting\FeatureConfig\UsageDataFlushing"
+        "\Microsoft\Windows\Flighting\FeatureConfig\UsageDataReporting"
+        "\Microsoft\Windows\CloudExperienceHost\CreateObjectTask"
+        "\Microsoft\Windows\DiskFootprint\Diagnostics"
+        "\Microsoft\Windows\NetTrace\GatherNetworkInfo"
+        "\Microsoft\Windows\PI\Sqm-Tasks"
+        "\Microsoft\Windows\PushToInstall\LoginCheck"
+        "\Microsoft\Windows\PushToInstall\Registration"
     )
 
     $EnableScheduledTasks = @(

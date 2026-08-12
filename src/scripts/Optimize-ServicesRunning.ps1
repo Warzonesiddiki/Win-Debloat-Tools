@@ -1,4 +1,5 @@
-﻿Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-HardwareInfo.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-HardwareInfo.psm1"
+Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Get-HardwareProfile.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\Title-Templates.psm1"
 Import-Module -DisableNameChecking "$PSScriptRoot\..\lib\debloat-helper\Set-ServiceStartup.psm1"
 
@@ -13,8 +14,11 @@ function Optimize-ServicesRunning() {
         [Switch] $Revert
     )
 
-    $IsSystemDriveSSD = $(Get-OSDriveType) -eq "SSD"
-    $EnableServicesOnSSD = @("SysMain", "WSearch")
+    $HardwareProfile = Get-HardwareProfile
+    $IsSystemDriveSSD = $HardwareProfile.DriveType -eq "SSD"
+    $EnableServicesOnSSD = @()
+    If (-not $HardwareProfile.DisableSysMain) { $EnableServicesOnSSD += "SysMain" }
+    If (-not $HardwareProfile.DisableSearch) { $EnableServicesOnSSD += "WSearch" }
 
     # Services which will be totally disabled
     $ServicesToDisabled = @(
@@ -35,9 +39,15 @@ function Optimize-ServicesRunning() {
         "SysMain"                                   # DEFAULT: Automatic | SysMain / Superfetch (100% Disk usage on HDDs)
         "TrkWks"                                    # DEFAULT: Automatic | Distributed Link Tracking Client
         "WSearch"                                   # DEFAULT: Automatic | Windows Search (100% Disk usage on HDDs)
+        "WSAIFabricSvc"                             # DEFAULT: Manual    | Windows AI Fabric (Copilot+ / 24H2+)
         # - Services which cannot be disabled (and shouldn't)
         #"wscsvc"                                   # DEFAULT: Automatic | Windows Security Center Service
         #"WdNisSvc"                                 # DEFAULT: Manual    | Windows Defender Network Inspection Service
+        #"wuauserv"                                 # Windows Update — NEVER disable
+        #"WinDefend"                                # Microsoft Defender — NEVER disable
+        #"Spooler"                                  # Print Spooler — NEVER disable by default
+        #"WlanSvc"                                  # Wi-Fi — NEVER disable
+        #"Audiosrv"                                 # Windows Audio — NEVER disable
     )
 
     # Making the services to run only when needed as 'Manual' | Remove the # to set to Manual
@@ -45,7 +55,7 @@ function Optimize-ServicesRunning() {
         "BITS"                           # DEFAULT: Manual    | Background Intelligent Transfer Service
         "edgeupdate"                     # DEFAULT: Automatic | Microsoft Edge Update Service
         "edgeupdatem"                    # DEFAULT: Manual    | Microsoft Edge Update Service²
-        "FontCache"                      # DEFAULT: Automatic | Windows Font Cache
+        # FontCache stays Automatic — Manual causes first-paint lag on low-end PCs
         "PhoneSvc"                       # DEFAULT: Manual    | Phone Service (Manages the telephony state on the device)
         "SCardSvr"                       # DEFAULT: Manual    | Smart Card Service
         "stisvc"                         # DEFAULT: Automatic | Windows Image Acquisition (WIA) Service
@@ -85,9 +95,8 @@ function Optimize-ServicesRunning() {
         "gupdatem"                       # DEFAULT: Manual    | Google Update Service²
     )
 
-    $ServicesToAutomatic = @(
-        "ndu"                            # DEFAULT: Automatic | Windows Network Data Usage Monitoring Driver (Shows network usage per-process on Task Manager)
-    )
+    # Do not force Ndu Automatic — Optimize-Performance disables it to cut RAM use.
+    $ServicesToAutomatic = @()
 
     Write-Title "Services tweaks"
     Write-Section "Disabling services from Windows"
@@ -101,12 +110,14 @@ function Optimize-ServicesRunning() {
 
     Write-Section "Enabling services from Windows"
 
-    If ($IsSystemDriveSSD -or $Revert) {
+    If (($IsSystemDriveSSD -or $Revert) -and $EnableServicesOnSSD.Count -gt 0) {
         Set-ServiceStartup -State 'Automatic' -Services $EnableServicesOnSSD
     }
 
     Set-ServiceStartup -State 'Manual' -Services $ServicesToManual
-    Set-ServiceStartup -State 'Automatic' -Services $ServicesToAutomatic
+    If ($ServicesToAutomatic.Count -gt 0) {
+        Set-ServiceStartup -State 'Automatic' -Services $ServicesToAutomatic
+    }
 }
 
 # List all services:

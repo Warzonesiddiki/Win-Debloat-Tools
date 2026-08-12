@@ -2,6 +2,13 @@
 
 ⚠ **Warning**: this file is subject to changing without notice.
 
+This fork targets **Windows 11 22H2–25H2**, especially 4–8 GB PCs. Read [docs/SAFETY.md](docs/SAFETY.md) before adding a service disable or AppX removal.
+
+- Hardware decisions belong in `Resolve-HardwareProfile` (`src/lib/Get-HardwareProfile.psm1`). Update `tests/test_hardware_profile.py` in the same PR.
+- Never disable Defender, Windows Update, audio, Wi-Fi, firewall, or Print Spooler by default.
+- Every new tweak needs a `-Revert` path.
+- Run `python3 tests/test_hardware_profile.py` locally.
+
 I would be happy to extend the collection of scripts.
 If you want to send me a **PULL REQUEST**, send you PRs to the `main` branch, I'll check your code, request changes if necessary or approve, and merge directly unless it's a "Draft PR".
 
